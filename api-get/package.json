@@ -1,0 +1,18 @@
+{
+  "name": "api-getter",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "docker-start": "CHROMIUM_PATH=/usr/bin/chromium node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Klap API Key auto-getter dashboard",
+  "dependencies": {
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "playwright": "^1.61.1"
+  }
+}

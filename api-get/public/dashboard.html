@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viral Cut Pro - Dashboard</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-card-hover: #1a1a26;
+      --border: #1e1e2e;
+      --border-active: #6c3bfc;
+      --primary: #6c3bfc;
+      --primary-glow: rgba(108, 59, 252, 0.3);
+      --accent: #00e5a0;
+      --accent-glow: rgba(0, 229, 160, 0.15);
+      --text: #e8e8f0;
+      --text-dim: #8888a0;
+      --text-muted: #555570;
+      --danger: #ff4466;
+      --warning: #ffaa00;
+      --success: #00e5a0;
+      --fire-high: #ff6b35;
+      --fire-mid: #ffa500;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+    /* Layout */
+    .app { display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 260px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 8px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .sidebar-logo .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--text), var(--primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-section {
+      margin-bottom: 24px;
+    }
+
+    .nav-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      padding: 0 12px;
+      margin-bottom: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 14px;
+      color: var(--text-dim);
+      user-select: none;
+    }
+
+    .nav-item:hover { background: var(--bg-card-hover); color: var(--text); }
+    .nav-item.active { background: var(--primary-glow); color: var(--text); border: 1px solid rgba(108, 59, 252, 0.3); }
+    .nav-item .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .main { flex: 1; margin-left: 260px; }
+
+    .topbar {
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      background: rgba(10, 10, 15, 0.8);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-title { font-size: 16px; font-weight: 600; }
+    .topbar-actions { display: flex; gap: 12px; align-items: center; }
+
+    .content { padding: 32px; }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+    .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: var(--bg-card-hover);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--text-muted); }
+
+    .btn-sm { padding: 6px 14px; font-size: 13px; }
+    .btn-danger { background: rgba(255, 68, 102, 0.15); color: var(--danger); border: 1px solid rgba(255, 68, 102, 0.3); }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .card-title { font-size: 16px; font-weight: 600; }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    /* Forms */
+    .form-group { margin-bottom: 20px; }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .form-textarea { min-height: 80px; resize: vertical; }
+    .form-select { cursor: pointer; }
+    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Range slider */
+    .range-group { display: flex; align-items: center; gap: 12px; }
+    .range-group input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+    .range-group input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+    .range-value {
+      min-width: 40px;
+      text-align: right;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 14px; }
+    .toggle-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .toggle {
+      width: 44px;
+      height: 24px;
+      background: var(--border);
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle.active { background: var(--primary); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.2s;
+    }
+    .toggle.active::after { transform: translateX(20px); }
+
+    /* Preset cards */
+    .preset-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .preset-card:hover { border-color: var(--text-muted); transform: translateY(-2px); }
+    .preset-card.selected { border-color: var(--primary); background: var(--primary-glow); }
+    .preset-card .preset-icon { font-size: 32px; margin-bottom: 8px; }
+    .preset-card .preset-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .preset-card .preset-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-success { background: rgba(0, 229, 160, 0.15); color: var(--success); }
+    .badge-warning { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+    .badge-danger { background: rgba(255, 68, 102, 0.15); color: var(--danger); }
+    .badge-info { background: rgba(108, 59, 252, 0.15); color: var(--primary); }
+
+    /* Virality meter */
+    .virality-meter {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .virality-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .virality-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s ease;
+    }
+    .virality-score {
+      font-size: 16px;
+      font-weight: 700;
+      min-width: 45px;
+      text-align: right;
+    }
+
+    /* Results table */
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .results-table th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .results-table td {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .results-table tr:hover td { background: var(--bg-card-hover); }
+
+    /* Stats */
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 13px; color: var(--text-dim); }
+
+    /* Page sections */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .section-header {
+      margin-bottom: 24px;
+    }
+    .section-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .section-header p { font-size: 14px; color: var(--text-dim); }
+
+    /* Progress */
+    .progress-steps {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 32px;
+    }
+    .progress-step {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      transition: background 0.3s;
+    }
+    .progress-step.done { background: var(--primary); }
+    .progress-step.active { background: var(--accent); animation: pulse-step 1.5s infinite; }
+
+    @keyframes pulse-step {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* History item */
+    .history-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .history-item:hover { border-color: var(--text-muted); }
+    .history-thumb {
+      width: 80px;
+      height: 56px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .history-info { flex: 1; }
+    .history-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .history-meta { font-size: 12px; color: var(--text-muted); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+    .empty-state p { font-size: 14px; }
+
+    /* Processing overlay */
+    .processing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      text-align: center;
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Clip result card */
+    .clip-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+    .clip-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .clip-preview {
+      height: 180px;
+      background: linear-gradient(135deg, #1a1030, #0d1b2a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      position: relative;
+    }
+    .clip-rank {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .clip-virality-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .clip-body { padding: 16px; }
+    .clip-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .clip-explanation { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+    .clip-actions { display: flex; gap: 8px; }
+    .clip-actions .btn { flex: 1; justify-content: center; }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .content { padding: 16px; }
+    }
+
+    /* Notification toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 24px;
+    }
+    .tab {
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--primary); color: white; }
+
+    /* Users page */
+    .user-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .user-card:hover { border-color: var(--primary); }
+    .user-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .user-info { flex: 1; }
+    .user-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .user-meta { font-size: 12px; color: var(--text-muted); }
+    .token-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      word-break: break-all;
+      margin: 8px 0;
+      user-select: all;
+    }
+    .token-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    /* Embed */
+    .embed-container {
+      width: 100%;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 9 / 16;
+      max-height: 600px;
+    }
+    .embed-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .embed-placeholder {
+      width: 100%;
+      height: 400px;
+      background: linear-gradient(135deg, #1a1030, #0d1b2a);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .embed-placeholder .embed-icon { font-size: 48px; opacity: 0.5; }
+
+    /* On-Behalf-Of selector */
+    .behalf-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      margin-top: 12px;
+    }
+    .behalf-row select { flex: 1; }
+
+    /* Code block */
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--text-dim);
+      overflow-x: auto;
+      white-space: pre-wrap;
+      user-select: all;
+      line-height: 1.6;
+    }
+    .code-block .keyword { color: var(--primary); }
+    .code-block .string { color: var(--accent); }
+    .code-block .comment { color: var(--text-muted); }
+
+    /* Empty for users */
+    .empty-users {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-users .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+    /* Key Generator */
+    .key-gen-progress {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+      line-height: 1.8;
+    }
+    .key-gen-progress .step { color: var(--primary); }
+    .key-gen-progress .done { color: var(--accent); }
+    .key-gen-progress .error { color: var(--danger); }
+    .key-gen-progress .info { color: var(--text-muted); }
+    .key-gen-result {
+      background: rgba(0, 229, 160, 0.1);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .key-gen-result .key-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .key-gen-result .key-value { font-size: 14px; font-weight: 600; word-break: break-all; color: var(--accent); }
+    .key-gen-result .key-email { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">V</div>
+        <h1>Viral Cut Pro</h1>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <div class="nav-item active" data-page="create">
+          <span class="nav-icon">+</span> Create New
+        </div>
+        <div class="nav-item" data-page="results">
+          <span class="nav-icon">&#9733;</span> Results
+        </div>
+        <div class="nav-item" data-page="history">
+          <span class="nav-icon">&#8635;</span> History
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Settings</div>
+        <div class="nav-item" data-page="presets">
+          <span class="nav-icon">&#9881;</span> Presets
+        </div>
+        <div class="nav-item" data-page="users">
+          <span class="nav-icon">&#128101;</span> Managed Users
+        </div>
+        <div class="nav-item" data-page="keys">
+          <span class="nav-icon">&#128273;</span> Key Manager
+        </div>
+        <div class="nav-item" data-page="editor">
+          <span class="nav-icon">&#128249;</span> Klap Editor
+        </div>
+        <div class="nav-item" data-page="settings">
+          <span class="nav-icon">&#9878;</span> Settings
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div onclick="logout()" style="cursor:pointer;color:var(--danger);font-size:13px;margin-bottom:6px;">&#128682; Logout</div>
+        Viral Cut Pro v2.0<br>
+        Powered by Klap API
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-title" id="topbar-title">Create New Clip</div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary btn-sm" id="btn-submit" onclick="submitJob()">
+            &#9889; Generate Clips
+          </button>
+        </div>
+      </div>
+
+      <!-- Page: Create -->
+      <div class="content">
+        <div class="page active" id="page-create">
+          <div class="section-header">
+            <h2>Create Viral Clips</h2>
+            <p>Paste your YouTube link, pick a content preset, and let AI find the best moments</p>
+          </div>
+
+          <div class="grid-2">
+            <!-- Left: Form -->
+            <div>
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Video Source</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">YouTube URL</label>
+                  <input type="text" class="form-input" id="input-url" placeholder="https://youtu.be/..." />
+                  <div class="form-hint">Paste any YouTube video link</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Jumlah Clips</label>
+                  <div class="range-group">
+                    <input type="range" min="1" max="20" value="5" id="input-count" oninput="document.getElementById('count-val').textContent = this.value" />
+                    <span class="range-value" id="count-val">5</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Custom Briefing</label>
+                  <textarea class="form-textarea" id="input-briefing" placeholder="e.g. Fokus ke momen lucu, insight penting, atau tips actionable..."></textarea>
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">API Key</div>
+                  <a href="#" onclick="navigateTo('keys'); return false;" style="color: var(--primary); font-size: 13px;">Manage Keys</a>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Pilih API Key</label>
+                  <select class="form-select" id="input-api-key-select" onchange="onKeySelectChange()">
+                    <option value="">Pilih API key...</option>
+                  </select>
+                </div>
+                <div class="form-group" id="input-api-key-manual" style="display: none; margin-bottom: 0;">
+                  <label class="form-label">Manual API Key</label>
+                  <input type="password" class="form-input" id="input-api-key" placeholder="Masukkan API key (tanpa 'Bearer')" />
+                  <div class="form-hint">Get from klap.app/rest-api or generate from <a href="#" onclick="navigateTo('keys'); return false;" style="color: var(--primary);">Key Manager</a></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">Style Settings</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Caption Style</label>
+                  <select class="form-select" id="input-caption-style">
+                    <option value="bold">Bold & Colorful</option>
+                    <option value="clean">Clean & Minimal</option>
+                    <option value="neon">Neon Glow</option>
+                    <option value="karaoke">Karaoke Style</option>
+                    <option value="none">No Caption</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Style Preset ID <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></label>
+                  <input type="text" class="form-input" id="input-style-preset" placeholder="dd2875e8-4e75-4887-973c-2adc928dd2ab" />
+                  <div class="form-hint">Copy from Klap editor preset menu (...) &gt; Copy ID. Overrides caption style above.</div>
+                </div>
+
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-label">Auto Reframe</div>
+                    <div class="toggle-desc">Crop ke speaker/aksi utama</div>
+                  </div>
+                  <div class="toggle active" id="toggle-reframe" onclick="toggleSwitch(this)"></div>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-label">Emoji Overlay</div>
+                    <div class="toggle-desc">Auto-detect emoji dari konteks</div>
+                  </div>
+                  <div class="toggle active" id="toggle-emoji" onclick="toggleSwitch(this)"></div>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-label">Remove Silences</div>
+                    <div class="toggle-desc">Hapus jeda kosong otomatis</div>
+                  </div>
+                  <div class="toggle active" id="toggle-silence" onclick="toggleSwitch(this)"></div>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-label">Intro Title</div>
+                    <div class="toggle-desc">Tambah title card di awal</div>
+                  </div>
+                  <div class="toggle" id="toggle-intro" onclick="toggleSwitch(this)"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Preset Picker -->
+            <div>
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Content Preset</div>
+                  <span class="badge badge-info">AI-optimized</span>
+                </div>
+                <div class="grid-3" id="preset-grid">
+                  <!-- Filled by JS -->
+                </div>
+              </div>
+
+              <div class="card" id="preset-detail">
+                <div class="card-header">
+                  <div class="card-title" id="preset-detail-title">Preset Details</div>
+                </div>
+                <div id="preset-detail-body">
+                  <p style="color: var(--text-muted); font-size: 14px;">Select a preset to see AI optimization details</p>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Duration Range</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Min Duration (detik)</label>
+                  <div class="range-group">
+                    <input type="range" min="5" max="60" value="15" id="input-min-dur" oninput="document.getElementById('min-dur-val').textContent = this.value + 's'" />
+                    <span class="range-value" id="min-dur-val">15s</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Max Duration (detik)</label>
+                  <div class="range-group">
+                    <input type="range" min="15" max="180" value="60" id="input-max-dur" oninput="document.getElementById('max-dur-val').textContent = this.value + 's'" />
+                    <span class="range-value" id="max-dur-val">60s</span>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Target Duration (detik)</label>
+                  <div class="range-group">
+                    <input type="range" min="10" max="120" value="30" id="input-target-dur" oninput="document.getElementById('target-dur-val').textContent = this.value + 's'" />
+                    <span class="range-value" id="target-dur-val">30s</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page: Results -->
+        <div class="page" id="page-results">
+          <div class="section-header">
+            <h2>Clip Results</h2>
+            <p>Sorted by virality score - best clips first</p>
+          </div>
+
+          <div id="results-area">
+            <!-- Stats -->
+            <div class="grid-4" style="margin-bottom: 24px;" id="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value" id="stat-total" style="color: var(--primary);">0</div>
+                <div class="stat-label">Total Clips</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-avg" style="color: var(--accent);">0%</div>
+                <div class="stat-label">Avg Virality</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-best" style="color: var(--fire-high);">0%</div>
+                <div class="stat-label">Best Score</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-preset" style="color: var(--warning);">-</div>
+                <div class="stat-label">Preset Used</div>
+              </div>
+            </div>
+
+            <div class="grid-3" id="clips-grid">
+              <!-- Clip cards filled by JS -->
+            </div>
+
+            <div class="empty-state" id="results-empty">
+              <div class="empty-icon">&#127916;</div>
+              <p>No results yet. Create clips to see them here.</p>
+            </div>
+          </div>
+
+          <!-- Processing state -->
+          <div id="processing-area" style="display: none;">
+            <div class="processing-card">
+              <div class="spinner"></div>
+              <h3 style="margin-bottom: 8px;">Processing your video...</h3>
+              <p style="color: var(--text-dim); font-size: 14px;" id="processing-status">Analyzing content with AI</p>
+              <div class="progress-steps" style="max-width: 400px; margin: 20px auto 0;">
+                <div class="progress-step active" id="step-1"></div>
+                <div class="progress-step" id="step-2"></div>
+                <div class="progress-step" id="step-3"></div>
+                <div class="progress-step" id="step-4"></div>
+                <div class="progress-step" id="step-5"></div>
+              </div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;" id="step-label">Step 1/5: Submitting video</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page: History -->
+        <div class="page" id="page-history">
+          <div class="section-header">
+            <h2>Processing History</h2>
+            <p>All your previous clip generations</p>
+          </div>
+          <div id="history-list">
+            <div class="empty-state">
+              <div class="empty-icon">&#128214;</div>
+              <p>No history yet. Start generating clips!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page: Presets -->
+        <div class="page" id="page-presets">
+          <div class="section-header">
+            <h2>Content Presets</h2>
+            <p>AI-optimized settings for each content type. Customize and save your own presets.</p>
+          </div>
+          <div id="presets-detail-list">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+
+        <!-- Page: Settings -->
+        <div class="page" id="page-settings">
+          <div class="section-header">
+            <h2>API Configuration</h2>
+            <p>Configure your Klap API key and notification settings</p>
+          </div>
+          <div class="card" style="max-width: 600px;">
+            <div class="form-group">
+              <label class="form-label">Klap API Key</label>
+              <input type="password" class="form-input" id="input-api-key" placeholder="Masukkan API key (tanpa 'Bearer')" />
+              <div class="form-hint">Get your key from klap.app dashboard</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">n8n Webhook URL</label>
+              <input type="text" class="form-input" id="input-webhook" placeholder="https://your-n8n.com/webhook/..." />
+              <div class="form-hint">Point to your n8n Form Trigger webhook. Leave blank to use Klap API directly.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telegram Chat ID</label>
+              <input type="text" class="form-input" id="input-telegram-id" placeholder="6601941001" />
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+          </div>
+        </div>
+
+        <!-- Page: Users -->
+        <div class="page" id="page-users">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h2>Managed Users</h2>
+              <p>Create ghost users and generate access tokens for Klap embed</p>
+            </div>
+            <button class="btn btn-primary" onclick="createManagedUser()">+ Create User</button>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+              <div class="card-title">How it works</div>
+            </div>
+            <p style="color: var(--text-dim); font-size: 14px; line-height: 1.6;">
+              <strong>1.</strong> Click <strong>"Create User"</strong> to create a managed sub-user under your Klap account.<br>
+              <strong>2.</strong> Generate an <strong>access token</strong> for that user to authenticate the Klap embed player.<br>
+              <strong>3.</strong> Use the token to <strong>embed the Klap editor</strong> in your dashboard or share it with clients.<br><br>
+              <span style="color: var(--text-muted);">All content created by managed users is billable to your Klap account.</span>
+            </p>
+          </div>
+
+          <div id="users-list">
+            <div class="empty-users">
+              <div class="empty-icon">&#128101;</div>
+              <p>No managed users yet. Create one to get started.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page: Key Manager -->
+        <div class="page" id="page-keys">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h2>Key Manager</h2>
+              <p>Generate, simpan, dan kelola banyak Klap API key (termasuk $5 credit tiap akun baru)</p>
+            </div>
+            <button class="btn btn-primary" id="btn-gen-key" onclick="generateKey()">
+              &#9889; Generate New Key
+            </button>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;" id="key-gen-card" style="display: none;">
+            <div class="card-header">
+              <div class="card-title" id="key-gen-title">Generating API Key...</div>
+            </div>
+            <div id="key-gen-progress-area" style="display: none;">
+              <div class="key-gen-progress" id="key-gen-log"></div>
+              <div class="key-gen-result" id="key-gen-result" style="display: none;"></div>
+            </div>
+            <div id="key-gen-start-msg">
+              <p style="color: var(--text-dim); font-size: 14px;">Proses: bikin email temp -> daftar Klap -> verifikasi -> ambil API key. Butuh ~30-60 detik.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Saved Keys (<span id="key-count">0</span>)</div>
+              <span class="badge badge-success" id="total-credit-badge">$0 credit</span>
+            </div>
+            <div id="keys-list">
+              <div class="empty-state">
+                <div class="empty-icon">&#128273;</div>
+                <p>Belum ada API key. Generate satu sekarang!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page: Editor -->
+        <div class="page" id="page-editor">
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h2>Klap Editor</h2>
+              <p>Edit your clips directly in the Klap embed player</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <select class="form-select" id="embed-user-select" style="min-width: 200px; padding: 8px 12px; font-size: 13px;">
+                <option value="">Select managed user...</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="refreshPlayers()">&#8635; Refresh</button>
+            </div>
+          </div>
+
+          <div id="embed-empty" class="empty-state">
+            <div class="empty-icon">&#128249;</div>
+            <p>No clips to embed. Create clips from the <strong>Create New</strong> page first, then come here to edit them in the Klap editor.</p>
+          </div>
+
+          <div id="embed-grid" class="grid-3" style="display: none;">
+            <!-- Embed cards filled by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span id="toast-msg"></span>
+  </div>
+
+  <script>
+    // ========================
+    // PRESETS DATA
+    // ========================
+    const PRESETS = {
+      'Podcast': {
+        icon: '&#127897;',
+        desc: 'Insight, hot take, banter',
+        min_duration: 30, max_duration: 90, target_duration: 60,
+        captions: true, reframe: false, emojis: false, remove_silences: true, intro_title: false,
+        context: 'Podcast conversation. Cari momen: kutipan insight mendalam, hot take kontroversial, momen emosional, cerita personal yang relatable, joke/banter lucu antar host. Hindari: intro/outro, iklan, small talk kosong.',
+        tips: [
+          'Fokus ke momen dimana host bilang sesuatu kontroversial atau surprising',
+          'Cari bagian storytelling personal - biasanya paling relatable',
+          'Audio clip yang bagus: 45-90 detik, 1 poin jelas',
+          'Hot take + reaction = combo viral'
+        ]
+      },
+      'Gaming': {
+        icon: '&#127918;',
+        desc: 'Clutch, epic, rage moments',
+        min_duration: 10, max_duration: 60, target_duration: 30,
+        captions: true, reframe: true, emojis: true, remove_silences: true, intro_title: true,
+        context: 'Gaming content. Cari momen: clutch play, epic win/fail, reaksi kaget/seru, momen lucu, rage quit, plot twist gameplay. Fokus ke excitement dan reaksi player.',
+        tips: [
+          'Moment paling viral: unexpected play + genuine reaction',
+          'Clutch 1vX situation selalu engage',
+          'Rage quit atau salty moment juga menarik asal authentic',
+          'Keep short: 15-30 detik. Gaming attention span cepat'
+        ]
+      },
+      'Tutorial': {
+        icon: '&#128218;',
+        desc: 'Tips, hacks, how-to',
+        min_duration: 20, max_duration: 90, target_duration: 45,
+        captions: true, reframe: true, emojis: false, remove_silences: true, intro_title: true,
+        context: 'Tutorial/educational content. Cari momen: tips actionable, before-after demo, common mistake reveal, shortcut/hack, key takeaway summary. Setiap clip harus self-contained dan ngasih value.',
+        tips: [
+          'Setiap clip harus ngasih 1 value yang jelas',
+          'Before-after demo format sangat engaging',
+          '"Most people don\'t know this..." hook terbukti efektif',
+          'Clip harus bisa berdiri sendiri tanpa konteks video full'
+        ]
+      },
+      'Vlog': {
+        icon: '&#127916;',
+        desc: 'Stories, travel, aesthetic',
+        min_duration: 15, max_duration: 60, target_duration: 30,
+        captions: true, reframe: true, emojis: true, remove_silences: true, intro_title: false,
+        context: 'Vlog content. Cari momen: storytelling seru, reveal/surprise, momen aesthetic/cinematic, reaksi genuine, adventure highlight, food/travel moment memorable.',
+        tips: [
+          'Visual-first: cari momen yang secara visual stunning',
+          'Surprise/reveal moments paling shareable',
+          'Food close-up + reaction = engagement tinggi',
+          'Authentic emotion > scripted moments'
+        ]
+      },
+      'Review': {
+        icon: '&#128230;',
+        desc: 'Unboxing, verdict, compare',
+        min_duration: 15, max_duration: 45, target_duration: 30,
+        captions: true, reframe: true, emojis: true, remove_silences: true, intro_title: true,
+        context: 'Product review/unboxing. Cari momen: first impression/reaction, fitur paling unik, perbandingan, verdict/rating, deal breaker, worth it or not moment.',
+        tips: [
+          'First reaction saat unboxing = engagement hook',
+          'Verdict/rating moment: "Worth it? Let me tell you..."',
+          'Comparison: "This vs That" format very shareable',
+          'Deal breaker reveal = curiosity driver'
+        ]
+      },
+      'Interview': {
+        icon: '&#127908;',
+        desc: 'Deep answers, revelations',
+        min_duration: 30, max_duration: 90, target_duration: 60,
+        captions: true, reframe: true, emojis: false, remove_silences: true, intro_title: false,
+        context: 'Interview format. Cari momen: jawaban paling impactful, cerita behind-the-scene, confession/revelation, advice berharga, momen emosional, quote memorable.',
+        tips: [
+          'Quote-worthy answers = most shareable',
+          'Emotional/vulnerable moments = high engagement',
+          'Behind-the-scene/exclusive info = curiosity hook',
+          'Plot twist answer yang unexpected'
+        ]
+      },
+      'Music': {
+        icon: '&#127925;',
+        desc: 'Performance, hooks, crowd',
+        min_duration: 15, max_duration: 60, target_duration: 30,
+        captions: false, reframe: true, emojis: false, remove_silences: false, intro_title: false,
+        context: 'Music/performance content. Cari momen: chorus/hook terbaik, high note, crowd reaction, solo instrument, dance break, opening yang powerful.',
+        tips: [
+          'Chorus/hook section = paling recognizable',
+          'High note atau impressive vocal moment',
+          'Crowd singing along = social proof',
+          'Jangan potong di tengah frase musikal'
+        ]
+      },
+      'Custom': {
+        icon: '&#9881;',
+        desc: 'Full manual control',
+        min_duration: 15, max_duration: 60, target_duration: 30,
+        captions: true, reframe: true, emojis: true, remove_silences: true, intro_title: false,
+        context: '',
+        tips: [
+          'Tulis briefing yang spesifik untuk hasil terbaik',
+          'Adjust duration sesuai platform target (TikTok: 15-30s, Reels: 30-60s, Shorts: 30-60s)',
+          'Setiap clip harus bisa berdiri sendiri',
+          'Hook di 3 detik pertama itu wajib'
+        ]
+      }
+    };
+
+    let selectedPreset = 'Custom';
+    let managedUsers = [];
+    let embedProjects = [];
+    let savedKeys = [];
+    let keyGenInProgress = false;
+
+    // ========================
+    // INIT
+    // ========================
+    function init() {
+      // Auth check
+      fetch('/api/auth/check').then(r => r.json()).then(d => {
+        if (!d.authenticated) window.location.href = '/login.html';
+      });
+      renderPresetGrid();
+      loadSettings();
+      loadManagedUsers();
+      loadKeys();
+      loadHistory();
+      selectPreset('Custom');
+      updateKeySelector();
+    }
+
+    function logout() {
+      fetch('/api/auth/logout', { method: 'POST' }).then(() => {
+        window.location.href = '/login.html';
+      });
+    }
+
+    // ========================
+    // NAVIGATION
+    // ========================
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(`page-${page}`).classList.add('active');
+
+        const titles = {
+          create: 'Create New Clip',
+          results: 'Clip Results',
+          history: 'Processing History',
+          presets: 'Content Presets',
+          users: 'Managed Users',
+          keys: 'Key Manager',
+          editor: 'Klap Editor',
+          settings: 'Settings'
+        };
+        document.getElementById('topbar-title').textContent = titles[page] || '';
+
+        if (page === 'presets') renderPresetsDetailPage();
+        if (page === 'users') renderUsers();
+        if (page === 'keys') renderKeyManager();
+        if (page === 'editor') refreshPlayers();
+      });
+    });
+
+    // ========================
+    // PRESET GRID
+    // ========================
+    function renderPresetGrid() {
+      const grid = document.getElementById('preset-grid');
+      grid.innerHTML = '';
+      Object.entries(PRESETS).forEach(([name, data]) => {
+        const card = document.createElement('div');
+        card.className = `preset-card${name === selectedPreset ? ' selected' : ''}`;
+        card.onclick = () => selectPreset(name);
+        card.innerHTML = `
+          <div class="preset-icon">${data.icon}</div>
+          <div class="preset-name">${name}</div>
+          <div class="preset-desc">${data.desc}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function selectPreset(name) {
+      selectedPreset = name;
+      const preset = PRESETS[name];
+
+      // Update grid selection
+      document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.preset-card').forEach(c => {
+        if (c.querySelector('.preset-name').textContent === name) c.classList.add('selected');
+      });
+
+      // Update form values
+      document.getElementById('input-min-dur').value = preset.min_duration;
+      document.getElementById('min-dur-val').textContent = preset.min_duration + 's';
+      document.getElementById('input-max-dur').value = preset.max_duration;
+      document.getElementById('max-dur-val').textContent = preset.max_duration + 's';
+      document.getElementById('input-target-dur').value = preset.target_duration;
+      document.getElementById('target-dur-val').textContent = preset.target_duration + 's';
+
+      // Update toggles
+      setToggle('toggle-reframe', preset.reframe);
+      setToggle('toggle-emoji', preset.emojis);
+      setToggle('toggle-silence', preset.remove_silences);
+      setToggle('toggle-intro', preset.intro_title);
+
+      // Caption style
+      if (!preset.captions) {
+        document.getElementById('input-caption-style').value = 'none';
+      } else {
+        document.getElementById('input-caption-style').value = 'bold';
+      }
+
+      // Update detail panel
+      renderPresetDetail(name, preset);
+    }
+
+    function renderPresetDetail(name, preset) {
+      document.getElementById('preset-detail-title').textContent = `${name} Preset`;
+      const body = document.getElementById('preset-detail-body');
+
+      let html = '';
+      if (preset.context) {
+        html += `<div style="background: var(--bg); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 13px; color: var(--text-dim); line-height: 1.6;">
+          <strong style="color: var(--accent);">AI Context:</strong><br>${preset.context}
+        </div>`;
+      }
+
+      html += '<div style="font-size: 13px;">';
+      html += '<strong style="color: var(--primary);">Tips untuk hasil terbaik:</strong><ul style="margin-top: 8px; padding-left: 20px;">';
+      preset.tips.forEach(tip => {
+        html += `<li style="margin-bottom: 6px; color: var(--text-dim);">${tip}</li>`;
+      });
+      html += '</ul></div>';
+      body.innerHTML = html;
+    }
+
+    // ========================
+    // TOGGLE
+    // ========================
+    function toggleSwitch(el) {
+      el.classList.toggle('active');
+    }
+    function setToggle(id, value) {
+      const el = document.getElementById(id);
+      if (value) el.classList.add('active');
+      else el.classList.remove('active');
+    }
+    function getToggle(id) {
+      return document.getElementById(id).classList.contains('active');
+    }
+
+    // ========================
+    // SUBMIT JOB
+    // ========================
+    let activeJobStream = null;
+
+     async function submitJob() {
+      let url = document.getElementById('input-url').value.trim();
+      if (!url) { showToast('Paste YouTube URL dulu!'); return; }
+
+      // Normalize YouTube URLs
+      url = url.replace(/^https?:\/\/m\./, 'https://www.');
+      const liveMatch = url.match(/youtube\.com\/live\/([\w-]+)/);
+      if (liveMatch) url = `https://www.youtube.com/watch?v=${liveMatch[1]}`;
+
+      const apiKey = getSelectedKey();
+      if (!apiKey) {
+        showToast('Pilih API key dulu! Buka Key Manager.');
+        return;
+      }
+
+      const preset = PRESETS[selectedPreset];
+      const stylePresetId = document.getElementById('input-style-preset').value.trim();
+      const count = parseInt(document.getElementById('input-count').value);
+      const captionStyle = document.getElementById('input-caption-style').value;
+
+      const payload = {
+        url,
+        apiKey,
+        count,
+        briefing: document.getElementById('input-briefing').value,
+        presetName: selectedPreset,
+        preset: {
+          min_duration: parseInt(document.getElementById('input-min-dur').value),
+          max_duration: parseInt(document.getElementById('input-max-dur').value),
+          target_duration: parseInt(document.getElementById('input-target-dur').value),
+          captions: captionStyle !== 'none',
+          reframe: getToggle('toggle-reframe'),
+          emojis: getToggle('toggle-emoji'),
+          remove_silences: getToggle('toggle-silence'),
+          intro_title: getToggle('toggle-intro'),
+          context_prefix: preset.context,
+        },
+        captionStyle,
+        stylePresetId: stylePresetId || '',
+      };
+
+      // Submit to server
+      try {
+        const res = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to create job');
+
+        const jobId = data.jobId;
+        navigateTo('results');
+        listenJob(jobId);
+      } catch(e) {
+        showToast('Error: ' + e.message);
+      }
+    }
+
+    function listenJob(jobId) {
+      if (activeJobStream) { activeJobStream.close(); }
+
+      showProcessing(true);
+      updateStep(1, 'Submitting...');
+
+      const es = new EventSource(`/api/jobs/${jobId}/stream`);
+      activeJobStream = es;
+
+      es.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.event === 'init' || msg.event === 'status') {
+          updateStep(1, msg.data.message || 'Starting...');
+        } else if (msg.event === 'step') {
+          updateStep(2, msg.data);
+        } else if (msg.event === 'progress') {
+          updateStep(1, msg.data);
+        } else if (msg.event === 'export_created') {
+          updateStep(2, msg.data);
+        } else if (msg.event === 'export_done') {
+          updateStep(2, msg.data);
+        } else if (msg.event === 'done') {
+          showProcessing(false);
+          activeJobStream = null;
+          es.close();
+          showResults(msg.data);
+          showToast('All clips ready!');
+        } else if (msg.event === 'error') {
+          showProcessing(false);
+          activeJobStream = null;
+          es.close();
+          showToast('Error: ' + msg.data);
+          updateStep(1, 'Error: ' + msg.data, 'error');
+        }
+      };
+
+      es.onerror = () => {
+        // Try to fetch job directly
+        fetch(`/api/jobs/${jobId}`).then(r => r.json()).then(d => {
+          if (d.job && d.job.status === 'completed') {
+            showProcessing(false);
+            es.close();
+            showResults(d.job);
+          } else if (d.job && d.job.status === 'error') {
+            showProcessing(false);
+            es.close();
+            showToast('Error: ' + d.job.error);
+          }
+        }).catch(() => {});
+      };
+    }
+
+    function showResults(jobData) {
+      const results = jobData.results || [];
+      const stats = jobData.stats || {};
+      const container = document.getElementById('results-content');
+
+      let html = `
+        <div class="result-stats">
+          <div class="stat-card">
+            <div class="stat-value">${stats.completedClips || 0}/${stats.totalClips || 0}</div>
+            <div class="stat-label">Clips Ready</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.avgVirality || 0}%</div>
+            <div class="stat-label">Avg Virality</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${stats.bestVirality || 0}%</div>
+            <div class="stat-label">Best Score</div>
+          </div>
+        </div>
+        <div class="results-list">
+      `;
+
+      results.forEach((clip, i) => {
+        const score = Math.round((clip.viralityScore || 0) * 100);
+        const label = score >= 80 ? 'SUPER VIRAL' : score >= 60 ? 'HIGH' : score >= 40 ? 'GOOD' : score >= 20 ? 'MODERATE' : 'LOW';
+        const color = score >= 80 ? '#00e5a0' : score >= 60 ? '#3b82f6' : score >= 40 ? '#f59e0b' : '#94a3b8';
+
+        html += `
+          <div class="result-item">
+            <div class="result-rank">#${i + 1}</div>
+            <div class="result-info">
+              <div class="result-title">${clip.name || 'Untitled'}</div>
+              <div class="result-meta">
+                <span class="badge" style="background: ${color}20; color: ${color};">${score}% ${label}</span>
+                ${clip.error ? `<span class="badge badge-danger">FAILED</span>` : ''}
+              </div>
+              ${clip.viralityExplanation ? `<div class="result-desc">${clip.viralityExplanation}</div>` : ''}
+            </div>
+            <div class="result-actions">
+              ${clip.src_url ? `<a href="${clip.src_url}" target="_blank" class="btn btn-primary btn-sm">Download</a>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // ========================
+    // DISPLAY RESULTS (legacy - for viewing history jobs)
+    // ========================
+    function displayResults(results, config) {
+      if (!results || !results.length) { showToast('No results'); return; }
+      const sorted = [...results].sort((a, b) => (b.viralityScore || b.virality_score || 0) - (a.viralityScore || a.virality_score || 0));
+
+      const avg = sorted.reduce((s, r) => s + (r.viralityScore || r.virality_score || 0), 0) / sorted.length;
+      const best = Math.max(...sorted.map(r => r.viralityScore || r.virality_score || 0));
+      document.getElementById('stat-total').textContent = sorted.length;
+      document.getElementById('stat-avg').textContent = Math.round(avg * 100) + '%';
+      document.getElementById('stat-best').textContent = Math.round(best * 100) + '%';
+      document.getElementById('stat-preset').textContent = config?.preset || config?.presetName || '-';
+
+      const grid = document.getElementById('clips-grid');
+      grid.innerHTML = '';
+      document.getElementById('results-empty').style.display = 'none';
+
+      sorted.forEach((clip, i) => {
+        const score = Math.round((clip.viralityScore || clip.virality_score || 0) * 100);
+        const color = getViralityColor((clip.viralityScore || clip.virality_score || 0));
+        const label = getViralityLabel((clip.viralityScore || clip.virality_score || 0));
+        const src = clip.src_url || '';
+        const name = clip.name || clip._clip_name || 'Untitled';
+        const expl = clip.viralityExplanation || clip.virality_explanation || '';
+        const card = document.createElement('div');
+        card.className = 'clip-card';
+        card.innerHTML = `
+          <div class="clip-preview" style="background: linear-gradient(135deg, ${color}22, #0d1b2a);">
+            <span>${getViralityEmoji((clip.viralityScore || clip.virality_score || 0))}</span>
+            <div class="clip-rank">#${i + 1}</div>
+            <div class="clip-virality-badge" style="background: ${color}33; color: ${color};">${score}% ${label}</div>
+          </div>
+          <div class="clip-body">
+            <div class="clip-title">${name}</div>
+            <div class="virality-meter" style="margin-bottom: 10px;">
+              <div class="virality-bar">
+                <div class="virality-fill" style="width: ${score}%; background: ${color};"></div>
+              </div>
+              <div class="virality-score" style="color: ${color};">${score}%</div>
+            </div>
+            <div class="clip-explanation">${expl || 'No explanation'}</div>
+            <div class="clip-actions">
+              ${src ? `<a href="${src}" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;">Download</a>` : '<button class="btn btn-secondary btn-sm" disabled>Processing...</button>'}
+              <button class="btn btn-secondary btn-sm" onclick="copyLink('${src}')">Copy Link</button>
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      });
+    }
+
+    function getViralityColor(score) {
+      if (score >= 0.8) return '#ff4444';
+      if (score >= 0.6) return '#ff6b35';
+      if (score >= 0.4) return '#ffa500';
+      if (score >= 0.2) return '#00e5a0';
+      return '#8888a0';
+    }
+
+    function getViralityLabel(score) {
+      if (score >= 0.8) return 'SUPER VIRAL';
+      if (score >= 0.6) return 'HIGH';
+      if (score >= 0.4) return 'GOOD';
+      if (score >= 0.2) return 'MODERATE';
+      return 'LOW';
+    }
+
+    function getViralityEmoji(score) {
+      if (score >= 0.8) return '&#128293;&#128293;&#128293;';
+      if (score >= 0.6) return '&#128293;&#128293;';
+      if (score >= 0.4) return '&#128293;';
+      if (score >= 0.2) return '&#10024;';
+      return '&#128206;';
+    }
+
+    // ========================
+    // PROCESSING STATE
+    // ========================
+    function showProcessing(show) {
+      document.getElementById('processing-area').style.display = show ? 'block' : 'none';
+      document.getElementById('results-area').style.display = show ? 'none' : 'block';
+    }
+
+    function updateStep(step, label) {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById(`step-${i}`);
+        el.classList.remove('done', 'active');
+        if (i < step) el.classList.add('done');
+        if (i === step) el.classList.add('active');
+      }
+      document.getElementById('step-label').textContent = `Step ${step}/5: ${label}`;
+      document.getElementById('processing-status').textContent = label;
+    }
+
+    // ========================
+    // HISTORY (from server DB)
+    // ========================
+    let historyJobs = [];
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/jobs');
+        const data = await res.json();
+        historyJobs = data.jobs || [];
+        renderHistory();
+      } catch(e) {
+        historyJobs = [];
+        renderHistory();
+      }
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('history-list');
+      if (!container) return;
+      if (!historyJobs.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div><p>No jobs yet. Create one!</p></div>';
+        return;
+      }
+      container.innerHTML = historyJobs.map(j => {
+        const statusColor = j.status === 'completed' ? 'var(--accent)' : j.status === 'error' ? 'var(--danger)' : 'var(--warning)';
+        return `
+          <div class="user-card" onclick="viewHistoryJob('${j.id}')" style="cursor:pointer;">
+            <div class="user-avatar" style="background: ${statusColor};">${j.presetName?.charAt(0) || 'C'}</div>
+            <div class="user-info">
+              <div class="user-name">${j.url?.slice(0, 50) || 'Unknown'}...</div>
+              <div class="user-meta">
+                ${j.presetName || '-'} | ${j.count || 0} clips | 
+                Status: <span style="color:${statusColor};">${j.status}</span>
+                ${j.stats?.avgVirality ? `| Avg Virality: ${j.stats.avgVirality}%` : ''}
+              </div>
+            </div>
+            <div style="font-size: 12px; color: var(--text-dim);">
+              ${new Date(j.createdAt).toLocaleString('id-ID')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function viewHistoryJob(jobId) {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        const data = await res.json();
+        if (data.job && data.job.results?.length) {
+          displayResults(data.job.results, data.job);
+          navigateTo('results');
+        } else if (data.job && data.job.status === 'completed') {
+          showToast('Job completed but no results data');
+        } else if (data.job && (data.job.status === 'processing' || data.job.status === 'pending')) {
+          showToast('Job still processing');
+        } else {
+          showToast('Job failed or no results');
+        }
+      } catch(e) {
+        showToast('Error loading job: ' + e.message);
+      }
+    }
+
+    // ========================
+    // PRESETS DETAIL PAGE
+    // ========================
+    function renderPresetsDetailPage() {
+      const container = document.getElementById('presets-detail-list');
+      container.innerHTML = Object.entries(PRESETS).map(([name, data]) => `
+        <div class="card" style="margin-bottom: 16px;">
+          <div class="card-header">
+            <div class="card-title" style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 24px;">${data.icon}</span> ${name}
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="selectPreset('${name}'); navigateTo('create');">Use Preset</button>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <div class="form-label" style="margin-bottom: 8px;">AI Context</div>
+              <div style="background: var(--bg); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text-dim); line-height: 1.6;">
+                ${data.context || '<em>No preset context (manual mode)</em>'}
+              </div>
+            </div>
+            <div>
+              <div class="form-label" style="margin-bottom: 8px;">Settings</div>
+              <div style="font-size: 13px; color: var(--text-dim);">
+                Duration: ${data.min_duration}s - ${data.max_duration}s (target: ${data.target_duration}s)<br>
+                Captions: ${data.captions ? 'Yes' : 'No'} | Reframe: ${data.reframe ? 'Yes' : 'No'}<br>
+                Emoji: ${data.emojis ? 'Yes' : 'No'} | Remove silence: ${data.remove_silences ? 'Yes' : 'No'}<br>
+                Intro title: ${data.intro_title ? 'Yes' : 'No'}
+              </div>
+              <div class="form-label" style="margin-top: 12px; margin-bottom: 8px;">Tips</div>
+              <ul style="font-size: 13px; color: var(--text-dim); padding-left: 20px;">
+                ${data.tips.map(t => `<li style="margin-bottom: 4px;">${t}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========================
+    // SETTINGS
+    // ========================
+    function saveSettings() {
+      localStorage.setItem('viralcut_api_key', document.getElementById('input-api-key').value);
+      localStorage.setItem('viralcut_webhook', document.getElementById('input-webhook').value);
+      localStorage.setItem('viralcut_telegram', document.getElementById('input-telegram-id').value);
+      showToast('Settings saved!');
+    }
+
+    function loadSettings() {
+      document.getElementById('input-api-key').value = localStorage.getItem('viralcut_api_key') || '';
+      document.getElementById('input-webhook').value = localStorage.getItem('viralcut_webhook') || '';
+      document.getElementById('input-telegram-id').value = localStorage.getItem('viralcut_telegram') || '';
+    }
+
+    // ========================
+    // MANAGED USERS
+    // ========================
+    function loadManagedUsers() {
+      try {
+        managedUsers = JSON.parse(localStorage.getItem('viralcut_users') || '[]');
+      } catch(e) { managedUsers = []; }
+    }
+
+    function saveManagedUsers() {
+      localStorage.setItem('viralcut_users', JSON.stringify(managedUsers));
+    }
+
+    async function createManagedUser() {
+      const apiKey = document.getElementById('input-api-key').value.trim();
+      if (!apiKey) { showToast('Set API Key dulu di Settings!'); return; }
+
+      try {
+        const res = await fetch('/api/klap/users', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        });
+        const user = await res.json();
+        if (!user.id) throw new Error('Failed to create user: ' + JSON.stringify(user));
+
+        managedUsers.push({
+          id: user.id,
+          email: user.email || 'ghost@managed.user',
+          orgId: user.organizationId || '-',
+          created: new Date().toISOString(),
+          tokens: []
+        });
+        saveManagedUsers();
+        renderUsers();
+        showToast('User created: ' + user.id.slice(0, 8) + '...');
+      } catch(e) {
+        showToast('Error: ' + e.message);
+      }
+    }
+
+    async function generateUserToken(userId) {
+      const apiKey = document.getElementById('input-api-key').value.trim();
+      if (!apiKey) { showToast('Set API Key dulu di Settings!'); return; }
+
+      try {
+        const res = await fetch(`/api/klap/users/${userId}/tokens`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
+        });
+        const data = await res.json();
+        if (!data.external_access_token) throw new Error('No token returned');
+
+        const user = managedUsers.find(u => u.id === userId);
+        if (user) {
+          user.tokens.push({
+            token: data.external_access_token,
+            created: new Date().toISOString(),
+            label: 'Token ' + (user.tokens.length + 1)
+          });
+          saveManagedUsers();
+          renderUsers();
+          showToast('Token generated!');
+        }
+      } catch(e) {
+        showToast('Error: ' + e.message);
+      }
+    }
+
+    function deleteUser(userId) {
+      if (!confirm('Hapus user ini?')) return;
+      managedUsers = managedUsers.filter(u => u.id !== userId);
+      saveManagedUsers();
+      renderUsers();
+    }
+
+    function copyToken(token) {
+      navigator.clipboard.writeText(token).then(() => showToast('Token copied!'));
+    }
+
+    function renderUsers() {
+      const container = document.getElementById('users-list');
+      loadManagedUsers();
+
+      if (!managedUsers.length) {
+        container.innerHTML = '<div class="empty-users"><div class="empty-icon">&#128101;</div><p>No managed users yet. Create one to get started.</p></div>';
+        return;
+      }
+
+      container.innerHTML = managedUsers.map(user => {
+        const shortId = user.id.slice(0, 12) + '...';
+        const latestToken = user.tokens.length > 0 ? user.tokens[user.tokens.length - 1] : null;
+        return `
+          <div class="user-card">
+            <div class="user-avatar">${user.email.charAt(0).toUpperCase()}</div>
+            <div class="user-info">
+              <div class="user-name">${user.email}</div>
+              <div class="user-meta">ID: ${shortId} | Tokens: ${user.tokens.length}</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary btn-sm" onclick="generateUserToken('${user.id}')">+ Token</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Delete</button>
+            </div>
+          </div>
+          ${latestToken ? `
+          <div style="margin: -8px 0 12px 60px; padding: 12px 16px; background: var(--bg); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Latest Token:</div>
+            <div class="token-box">${latestToken.token}</div>
+            <div class="token-actions">
+              <button class="btn btn-primary btn-sm" onclick="copyToken('${latestToken.token}')">Copy Token</button>
+              <button class="btn btn-secondary btn-sm" onclick="openKlapEmbed('${latestToken.token}')">Open Editor</button>
+            </div>
+          </div>` : ''}
+        `;
+      }).join('');
+
+      // Update embed user select
+      const select = document.getElementById('embed-user-select');
+      select.innerHTML = '<option value="">Select managed user...</option>' +
+        managedUsers.map(u => `<option value="${u.id}">${u.email}</option>`).join('');
+    }
+
+    function openKlapEmbed(token) {
+      navigateTo('editor');
+      setTimeout(() => {
+        const embedGrid = document.getElementById('embed-grid');
+        embedGrid.style.display = 'block';
+        embedGrid.innerHTML = `
+          <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">&#128249;</div>
+            <h3 style="margin-bottom: 8px;">Klap Editor Ready</h3>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Paste a project ID to open the editor for a specific project:</p>
+            <div style="display: flex; gap: 8px; max-width: 500px; margin: 0 auto;">
+              <input type="text" class="form-input" id="embed-project-input" placeholder="tnX8jxsCNpvn" />
+              <button class="btn btn-primary" onclick="loadEmbedProject()">Open</button>
+            </div>
+            <div id="embed-player-container" style="margin-top: 24px; max-width: 360px; margin-left: auto; margin-right: auto;"></div>
+          </div>
+        `;
+      }, 100);
+    }
+
+    function loadEmbedProject() {
+      const projectId = document.getElementById('embed-project-input').value.trim();
+      const userSelect = document.getElementById('embed-user-select');
+      const userId = userSelect.value;
+      const user = managedUsers.find(u => u.id === userId);
+      if (!user || !user.tokens.length) {
+        showToast('Select a managed user with at least one token first');
+        return;
+      }
+      const token = user.tokens[user.tokens.length - 1].token;
+      const container = document.getElementById('embed-player-container');
+      container.innerHTML = `
+        <div class="embed-container">
+          <iframe src="https://app.klap.app/embed/${projectId}#external_access_token=${token}" allow="clipboard-read; clipboard-write" loading="lazy"></iframe>
+        </div>
+        <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Editing project: ${projectId}</p>
+      `;
+      showToast('Embed player loaded!');
+    }
+
+    function openEditorForClip(projectId) {
+      navigateTo('editor');
+      setTimeout(() => {
+        document.getElementById('embed-project-input').value = projectId;
+        loadEmbedProject();
+      }, 200);
+    }
+
+    function refreshPlayers() {
+      loadManagedUsers();
+      renderUsers();
+      const embedGrid = document.getElementById('embed-grid');
+      embedGrid.style.display = 'none';
+      document.getElementById('embed-empty').style.display = 'block';
+      showToast('Refreshed!');
+    }
+
+    // ========================
+    // KEY MANAGER
+    // ========================
+    function loadKeys() {
+      try {
+        savedKeys = JSON.parse(localStorage.getItem('viralcut_keys') || '[]');
+      } catch(e) { savedKeys = []; }
+    }
+
+    function saveKeys() {
+      localStorage.setItem('viralcut_keys', JSON.stringify(savedKeys));
+      updateKeySelector();
+    }
+
+    function updateKeySelector() {
+      const select = document.getElementById('input-api-key-select');
+      if (!select) return;
+      const current = select.value;
+      select.innerHTML = '<option value="">Pilih API key...</option>' +
+        savedKeys.map((k, i) => {
+          const label = k.email ? k.email.slice(0, 20) + '...' : k.key.slice(0, 16) + '...';
+          const creditInfo = k.creditUsed !== undefined ? ` ($${(5 - k.creditUsed).toFixed(2)} left)` : '';
+          return `<option value="${i}">${label}${creditInfo}</option>`;
+        }).join('') +
+        '<option value="__manual__">Manual input...</option>';
+      if (current && document.querySelector(`#input-api-key-select option[value="${current}"]`)) {
+        select.value = current;
+      }
+    }
+
+    function onKeySelectChange() {
+      const select = document.getElementById('input-api-key-select');
+      const manualGroup = document.getElementById('input-api-key-manual');
+      manualGroup.style.display = select.value === '__manual__' ? 'block' : 'none';
+    }
+
+    function getSelectedKey() {
+      const select = document.getElementById('input-api-key-select');
+      if (select.value === '__manual__') {
+        return document.getElementById('input-api-key').value.trim();
+      }
+      if (select.value !== '') {
+        const idx = parseInt(select.value);
+        return savedKeys[idx]?.key || '';
+      }
+      return '';
+    }
+
+    async function generateKey() {
+      if (keyGenInProgress) { showToast('Already generating!'); return; }
+      keyGenInProgress = true;
+
+      const btn = document.getElementById('btn-gen-key');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating...';
+
+      const card = document.getElementById('key-gen-card');
+      card.style.display = 'block';
+      card.style.marginBottom = '24px';
+      document.getElementById('key-gen-start-msg').style.display = 'none';
+      document.getElementById('key-gen-progress-area').style.display = 'block';
+      const log = document.getElementById('key-gen-log');
+      const resultDiv = document.getElementById('key-gen-result');
+      resultDiv.style.display = 'none';
+      log.innerHTML = '';
+
+      function addLog(msg, type = 'info') {
+        log.innerHTML += `<div class="${type}">${msg}</div>`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      try {
+        const es = new EventSource(`/api/get-key`);
+
+        es.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.step === 'done') {
+            const result = JSON.parse(data.message);
+            es.close();
+            addLog(`✅ API Key: ${result.key}`, 'done');
+            addLog(`📧 Email: ${result.email}`, 'done');
+
+            // Save key
+            savedKeys.push({
+              email: result.email,
+              key: result.key,
+              creditTotal: 5,
+              creditUsed: 0,
+              createdAt: new Date().toISOString(),
+              lastUsed: null
+            });
+            saveKeys();
+
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+              <div class="key-label">API Key</div>
+              <div class="key-value">${result.key}</div>
+              <div class="key-email">📧 ${result.email} | 💰 $5 credit ready</div>
+            `;
+            addLog('✅ Key saved!', 'done');
+            renderKeyManager();
+            showToast('Key generated & saved!');
+            keyGenInProgress = false;
+            btn.disabled = false;
+            btn.textContent = '⚡ Generate New Key';
+          } else if (data.step === 'error') {
+            es.close();
+            addLog(`❌ Error: ${data.message}`, 'error');
+            keyGenInProgress = false;
+            btn.disabled = false;
+            btn.textContent = '⚡ Generate New Key';
+          } else {
+            addLog(`${data.step}: ${data.message}`, 'step');
+          }
+        };
+
+        es.onerror = () => {
+          addLog('⚠️ Connection lost. Check if api-get is running on port 3003.', 'error');
+          es.close();
+          keyGenInProgress = false;
+          btn.disabled = false;
+          btn.textContent = '⚡ Generate New Key';
+        };
+
+      } catch(e) {
+        addLog(`❌ Error: ${e.message}`, 'error');
+        keyGenInProgress = false;
+        btn.disabled = false;
+        btn.textContent = '⚡ Generate New Key';
+      }
+    }
+
+    function deleteKey(idx) {
+      if (!confirm('Hapus key ini?')) return;
+      savedKeys.splice(idx, 1);
+      saveKeys();
+      renderKeyManager();
+    }
+
+    function copyKeyValue(key) {
+      navigator.clipboard.writeText(key).then(() => showToast('Key copied!'));
+    }
+
+    function renderKeyManager() {
+      loadKeys();
+      document.getElementById('key-count').textContent = savedKeys.length;
+
+      const totalCredit = savedKeys.reduce((sum, k) => sum + (k.creditTotal || 5), 0);
+      const usedCredit = savedKeys.reduce((sum, k) => sum + (k.creditUsed || 0), 0);
+      document.getElementById('total-credit-badge').textContent = `$${(totalCredit - usedCredit).toFixed(2)} credit`;
+
+      const list = document.getElementById('keys-list');
+      if (!savedKeys.length) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128273;</div><p>Belum ada API key. Generate satu sekarang!</p></div>';
+        return;
+      }
+
+      list.innerHTML = savedKeys.map((k, i) => {
+        const remaining = (k.creditTotal || 5) - (k.creditUsed || 0);
+        const emailShort = k.email ? k.email.slice(0, 30) + (k.email.length > 30 ? '...' : '') : '-';
+        return `
+          <div class="user-card" style="margin-bottom: 8px;">
+            <div class="user-avatar" style="background: linear-gradient(135deg, #6c3bfc, #00e5a0);">K</div>
+            <div class="user-info">
+              <div class="user-name">${emailShort}</div>
+              <div class="user-meta">
+                Key: ${k.key.slice(0, 20)}...${k.key.slice(-6)} |
+                Credit: <span style="color: ${remaining > 0 ? 'var(--accent)' : 'var(--danger)'};">$${remaining.toFixed(2)}</span> / $${(k.creditTotal || 5).toFixed(2)}
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary btn-sm" onclick="copyKeyValue('${k.key}')">Copy</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteKey(${i})">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ========================
+    // UTILS
+    // ========================
+    function navigateTo(page) {
+      document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.toggle('active', n.dataset.page === page);
+      });
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(`page-${page}`).classList.add('active');
+    }
+
+    function copyLink(url) {
+      if (!url) { showToast('Link belum tersedia'); return; }
+      navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Demo data for preview
+    function loadDemo() {
+      const demoResults = [
+        { name: 'Hot Take: AI Akan Gantikan Semua Pekerjaan?', virality_score: 0.92, virality_explanation: 'Controversial take on AI replacing jobs, triggers engagement and debate. Strong emotional hook.', src_url: '#', status: 'ready' },
+        { name: 'Cerita Gagal Pertama Kali Bisnis', virality_score: 0.78, virality_explanation: 'Personal failure story is highly relatable. Storytelling format keeps viewers engaged.', src_url: '#', status: 'ready' },
+        { name: 'Tips Rahasia Productivity 10x', virality_score: 0.65, virality_explanation: 'Actionable productivity tips with "secret" hook. Good save-to-watch-later potential.', src_url: '#', status: 'ready' },
+        { name: 'Reaksi Lucu Saat Ketemu Fans', virality_score: 0.54, virality_explanation: 'Authentic funny reaction. Good for shares but niche audience.', src_url: '#', status: 'ready' },
+        { name: 'Behind The Scenes Setup Studio', virality_score: 0.31, virality_explanation: 'BTS content has moderate interest. Appeals to creator community.', src_url: '#', status: 'ready' }
+      ];
+      navigateTo('results');
+      displayResults(demoResults, { preset: 'Podcast' });
+      showToast('Demo data loaded!');
+    }
+
+    // Init
+    init();
+  </script>
+</body>
+</html>

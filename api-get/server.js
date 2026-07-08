@@ -1,0 +1,404 @@
+const express = require('express');
+const path = require('path');
+const session = require('express-session');
+const { getKlapApiKey } = require('./klap-automation');
+const { processFormSubmission, pollTask, getVideoUrl } = require('./webhook');
+const { requireAuth } = require('./auth');
+const { postToTikTok } = require('./tiktok-poster');
+const { getAllJobs, getJob, createJob, updateJob, getAllKeys, saveKey } = require('./db');
+const { startJob, subscribeJob } = require('./job-processor');
+
+const app = express();
+const PORT = process.env.PORT || 3002;
+
+// Env config
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+// Session
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'viral-cut-secret-change-me',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 },
+}));
+
+app.use(express.json());
+
+// CORS - allow Viral Cut dashboard to call api-get
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
+// SSE keepalive helper — sends a comment every 15s to prevent timeout
+function sseKeepalive(res) {
+  const interval = setInterval(() => {
+    res.write(': keepalive\n\n');
+  }, 15000);
+  res.on('close', () => clearInterval(interval));
+  return interval;
+}
+
+// Track active get-key processes per session to prevent duplicates on reconnect
+const activeGetKey = new Map();
+
+// Root route — catch BEFORE express.static so index.html doesn't hijack it
+app.get('/', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Static files (login.html, dashboard assets, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Auth routes ──────────────────────────────────────────────────────
+
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    req.session.authenticated = true;
+    req.session.username = username;
+    return res.json({ success: true });
+  }
+  res.status(401).json({ success: false, error: 'Username atau password salah' });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+
+app.get('/api/auth/check', (req, res) => {
+  res.json({ authenticated: !!req.session.authenticated, username: req.session.username || '' });
+});
+
+// GET /api/get-key — auto-get Klap API key (requires auth)
+app.get('/api/get-key', requireAuth, async (req, res) => {
+  // Prevent duplicate processes on EventSource reconnect
+  const sessionKey = req.sessionID || req.ip;
+  if (activeGetKey.get(sessionKey)) {
+    return res.end();
+  }
+  activeGetKey.set(sessionKey, true);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const keepalive = sseKeepalive(res);
+
+  const sendEvent = (step, message) => {
+    res.write(`data: ${JSON.stringify({ step, message })}\n\n`);
+  };
+
+  try {
+    const result = await getKlapApiKey(({ step, message }) => {
+      sendEvent(step, message);
+    });
+    sendEvent('done', JSON.stringify(result));
+  } catch (err) {
+    sendEvent('error', err.message);
+  } finally {
+    clearInterval(keepalive);
+    activeGetKey.delete(sessionKey);
+    res.end();
+  }
+});
+
+// POST /api/webhook/process-form — body: { linkYt, mauBerapaBanyak, tambahkanBriefing, api }
+app.post('/api/webhook/process-form', requireAuth, async (req, res) => {
+  const { linkYt, mauBerapaBanyak, tambahkanBriefing, api: apiKey } = req.body;
+
+  if (!linkYt || !apiKey) {
+    return res.status(400).json({
+      success: false,
+      error: 'Field wajib: linkYt (YouTube URL) dan api (Klap API key)',
+    });
+  }
+
+  try {
+    const result = await processFormSubmission({
+      apiKey,
+      linkYt,
+      mauBerapaBanyak: parseInt(mauBerapaBanyak, 10) || 10,
+      tambahkanBriefing: tambahkanBriefing || '',
+    });
+
+    res.json({
+      success: true,
+      task: result.task,
+      projects: result.projects,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+// GET /api/webhook/process-form-stream — SSE streaming progress
+app.get('/api/webhook/process-form-stream', requireAuth, async (req, res) => {
+  const { linkYt, mauBerapaBanyak, tambahkanBriefing, api: apiKey } = req.query;
+
+  if (!linkYt || !apiKey) {
+    res.status(400).json({ success: false, error: 'Field wajib: linkYt dan api' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const keepalive = sseKeepalive(res);
+
+  const sendEvent = (step, message, data) => {
+    res.write(`data: ${JSON.stringify({ step, message, data })}\n\n`);
+  };
+
+  try {
+    const result = await processFormSubmission(
+      {
+        apiKey,
+        linkYt,
+        mauBerapaBanyak: parseInt(mauBerapaBanyak, 10) || 10,
+        tambahkanBriefing: tambahkanBriefing || '',
+      },
+      ({ step, message, data }) => sendEvent(step, message, data),
+    );
+
+    sendEvent('done', 'Selesai', result);
+  } catch (err) {
+    sendEvent('error', err.message);
+  } finally {
+    clearInterval(keepalive);
+    res.end();
+  }
+});
+
+// ── Key Management API ────────────────────────────────────────────────
+
+// GET /api/keys — List all saved API keys
+app.get('/api/keys', requireAuth, (req, res) => {
+  const keys = getAllKeys().map(k => ({
+    id: k.id, email: k.email, key: k.key, credit: k.credit || 0,
+    createdAt: k.createdAt,
+  }));
+  res.json({ keys });
+});
+
+// POST /api/keys — Save a new API key
+app.post('/api/keys', requireAuth, (req, res) => {
+  const { email, key, credit } = req.body;
+  if (!key) return res.status(400).json({ error: 'key wajib diisi' });
+  const entry = {
+    id: `key_${Date.now()}`,
+    email: email || '',
+    key,
+    credit: parseInt(credit) || 0,
+    createdAt: new Date().toISOString(),
+  };
+  saveKey(entry);
+  res.json({ success: true, key: entry });
+});
+
+// PUT /api/keys/:id — Update key (e.g. credit balance)
+app.put('/api/keys/:id', requireAuth, (req, res) => {
+  const { deleteKey } = require('./db');
+  const old = getJob(req.params.id); // just for exists check
+  if (!old) return res.status(404).json({ error: 'Key not found' });
+  // Re-save with updated data
+  deleteKey(req.params.id);
+  saveKey({ ...old, ...req.body, id: req.params.id });
+  res.json({ success: true });
+});
+
+// DELETE /api/keys/:id — Delete a key
+app.delete('/api/keys/:id', requireAuth, (req, res) => {
+  const { deleteKey } = require('./db');
+  deleteKey(req.params.id);
+  res.json({ success: true });
+});
+
+// GET /api/webhook/status/:taskId?api=YOUR_API_KEY — single status check
+app.get('/api/webhook/status/:taskId', requireAuth, async (req, res) => {
+  const { api: apiKey } = req.query;
+  const { taskId } = req.params;
+
+  if (!apiKey) {
+    return res.status(400).json({ success: false, error: 'Query parameter api (API key) wajib' });
+  }
+
+  try {
+    const task = await pollTask(apiKey, taskId, 1000, 1);
+    res.json({ success: true, task });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/tiktok/post — post a generated short to TikTok
+// body: { projectId, folderId, apiKey, caption? }
+app.post('/api/tiktok/post', requireAuth, async (req, res) => {
+  const { projectId, folderId, apiKey, caption } = req.body;
+
+  if (!projectId || !folderId || !apiKey) {
+    return res.status(400).json({ success: false, error: 'Field wajib: projectId, folderId, apiKey' });
+  }
+
+  const tiktokUsername = process.env.TIKTOK_USERNAME;
+  const tiktokPassword = process.env.TIKTOK_PASSWORD;
+
+  if (!tiktokUsername || !tiktokPassword) {
+    return res.status(400).json({
+      success: false,
+      error: 'TikTOK credentials belum diatur di .env (TIKTOK_USERNAME dan TIKTOK_PASSWORD)',
+    });
+  }
+
+  try {
+    // Step 1: Export video from Klap and get download URL
+    const videoUrl = await getVideoUrl(apiKey, folderId, projectId);
+
+    // Step 2: TikTok post — append required hashtags
+    const extraHashtags = '#fyp #izinpost #clipper';
+    const fullCaption = caption ? `${caption}\n${extraHashtags}` : extraHashtags;
+    const result = await postToTikTok(videoUrl, fullCaption, {
+      username: tiktokUsername,
+      password: tiktokPassword,
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Job Management API ───────────────────────────────────────────────
+
+// POST /api/jobs — Submit a new clip generation job
+app.post('/api/jobs', requireAuth, async (req, res) => {
+  const { url, apiKey, count, briefing, presetName, preset, captionStyle, stylePresetId, behalfToken } = req.body;
+  if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
+
+  const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const job = {
+    id,
+    url,
+    apiKey,
+    count: Math.min(parseInt(count) || 5, 20),
+    briefing: briefing || '',
+    presetName: presetName || 'Custom',
+    preset: preset || {},
+    captionStyle: captionStyle || 'bold',
+    stylePresetId: stylePresetId || '',
+    behalfToken: behalfToken || '',
+    status: 'pending',
+    message: 'Queued...',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    results: [],
+    stats: {},
+  };
+
+  createJob(job);
+  startJob(job);
+
+  res.json({ success: true, jobId: id });
+});
+
+// GET /api/jobs — List all jobs
+app.get('/api/jobs', requireAuth, (req, res) => {
+  const jobs = getAllJobs().map(j => ({
+    id: j.id, url: j.url, presetName: j.presetName, count: j.count,
+    status: j.status, message: j.message, stats: j.stats,
+    createdAt: j.createdAt, endedAt: j.endedAt,
+  }));
+  res.json({ jobs });
+});
+
+// GET /api/jobs/:id — Get single job with full results
+app.get('/api/jobs/:id', requireAuth, (req, res) => {
+  const job = getJob(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  res.json({ job });
+});
+
+// DELETE /api/jobs/:id — Delete a job
+app.delete('/api/jobs/:id', requireAuth, (req, res) => {
+  const { deleteJob } = require('./db');
+  deleteJob(req.params.id);
+  res.json({ success: true });
+});
+
+// GET /api/jobs/:id/stream — SSE stream for job progress
+app.get('/api/jobs/:id/stream', requireAuth, async (req, res) => {
+  const job = getJob(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const keepalive = sseKeepalive(res);
+
+  // Send current state
+  res.write(`data: ${JSON.stringify({ event: 'init', data: job })}\n\n`);
+
+  // Subscribe to updates
+  const unsubscribe = subscribeJob(req.params.id, (update) => {
+    res.write(`data: ${JSON.stringify(update)}\n\n`);
+    if (update.event === 'done' || update.event === 'error') {
+      setTimeout(() => { try { res.end(); } catch {} }, 500);
+    }
+  });
+
+  req.on('close', () => {
+    clearInterval(keepalive);
+    unsubscribe();
+  });
+});
+
+// ── Klap API Proxy (bypass CORS) ──────────────────────────────────────
+// Dashboard calls /api/klap/*, server forwards to https://api.klap.app/v2/*
+
+app.use('/api/klap', async (req, res) => {
+  const url = `https://api.klap.app/v2${req.path}`;
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ error: 'Missing Authorization header' });
+
+  const headers = {
+    'Authorization': auth,
+    'Content-Type': 'application/json',
+    ...(req.headers['x-on-behalf-of'] ? { 'X-On-Behalf-Of': req.headers['x-on-behalf-of'] } : {}),
+  };
+
+  const options = { method: req.method, headers };
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    options.body = JSON.stringify(req.body);
+  }
+
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+    res.status(response.status).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const server = app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Webhook:    http://localhost:${PORT}/api/webhook/process-form`);
+  console.log(`Dashboard:  http://localhost:${PORT}/`);
+  console.log(`Login:      http://localhost:${PORT}/login.html`);
+});
+
+// No timeout for SSE connections (default Node.js is 2min)
+server.timeout = 0;
