@@ -4,3 +4,8 @@ data/database.json
 *.log
 tmp/
 __pycache__/
+
+# n8n runtime data
+n8n/data/database.sqlite*
+n8n/data/storage/
+n8n/data/crash.journal
