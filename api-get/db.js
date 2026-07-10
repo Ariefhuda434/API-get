@@ -73,7 +73,32 @@ function getAllKeys() {
   return (readDB().keys || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+function updateKey(id, updates) {
+  const db = readDB();
+  const idx = (db.keys || []).findIndex(k => k.id === id);
+  if (idx === -1) return null;
+  db.keys[idx] = { ...db.keys[idx], ...updates, updatedAt: new Date().toISOString() };
+  writeDB(db);
+  return db.keys[idx];
+}
+
+function getKey(id) {
+  return (readDB().keys || []).find(k => k.id === id) || null;
+}
+
 module.exports = {
   getAllJobs, getJob, createJob, updateJob, deleteJob,
-  saveKey, deleteKey, getAllKeys,
+  saveKey, deleteKey, getAllKeys, updateKey, getKey,
 };
+function updateKeyCreditByApiKey(apiKey, creditChange) {
+  const db = readDB();
+  const idx = (db.keys || []).findIndex(k => k.key === apiKey);
+  if (idx === -1) return null;
+  const k = db.keys[idx];
+  k.creditUsed = (k.creditUsed || 0) + creditChange;
+  k.updatedAt = new Date().toISOString();
+  writeDB(db);
+  return k;
+}
+
+module.exports.updateKeyCreditByApiKey = updateKeyCreditByApiKey;

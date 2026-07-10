@@ -1,0 +1,38 @@
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h2>Key Manager</h2>
+              <p>Generate, simpan, dan kelola banyak Klap API key (termasuk $5 credit tiap akun baru)</p>
+            </div>
+            <button class="btn btn-primary" id="btn-gen-key" onclick="generateKey()">
+              &#9889; Generate New Key
+            </button>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;" id="key-gen-card" style="display: none;">
+            <div class="card-header">
+              <div class="card-title" id="key-gen-title">Generating API Key...</div>
+            </div>
+            <div id="key-gen-progress-area" style="display: none;">
+              <div class="key-gen-progress" id="key-gen-log"></div>
+              <div class="key-gen-result" id="key-gen-result" style="display: none;"></div>
+            </div>
+            <div id="key-gen-start-msg">
+              <p style="color: var(--text-dim); font-size: 14px;">Proses: bikin email temp -> daftar Klap -> verifikasi -> ambil API key. Butuh ~30-60 detik.</p>
+            </div>
+          </div>
+
+          <div class="card">
+              <div class="card-header">
+                  <div class="card-title">Saved Keys (<span id="key-count">0</span>)</div>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="badge" style="background: var(--accent-glow); color: var(--accent);" id="total-credit-badge">$0 credit</span>
+                    <button class="btn btn-secondary btn-sm" onclick="checkAllCredit()">&#128200; Check Credits</button>
+                  </div>
+                </div>
+            <div id="keys-list">
+              <div class="empty-state">
+                <div class="empty-icon">&#128273;</div>
+                <p>Belum ada API key. Generate satu sekarang!</p>
+              </div>
+            </div>
+          </div>

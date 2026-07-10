@@ -585,6 +585,7 @@
       transition: border-color 0.2s;
     }
     .user-card:hover { border-color: var(--primary); }
+    .user-card.error-card { border-color: var(--danger); background: rgba(255,68,102,0.05); }
     .user-avatar {
       width: 44px;
       height: 44px;
@@ -981,17 +982,21 @@
 
         <!-- Page: History -->
         <div class="page" id="page-history">
-          <div class="section-header">
-            <h2>Processing History</h2>
-            <p>All your previous clip generations</p>
-          </div>
-          <div id="history-list">
-            <div class="empty-state">
-              <div class="empty-icon">&#128214;</div>
-              <p>No history yet. Start generating clips!</p>
-            </div>
-          </div>
-        </div>
+  <div class="section-header">
+    <h2>Processing History</h2>
+    <p>All your previous clip generations</p>
+  </div>
+  <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+    <button class="btn btn-secondary btn-sm" onclick="loadHistory()">&#128260; Refresh</button>
+    <button class="btn btn-danger btn-sm" onclick="clearAllHistory()">&#128465; Clear All</button>
+  </div>
+  <div id="history-list">
+    <div class="empty-state">
+      <div class="empty-icon">&#128214;</div>
+      <p>No history yet. Start generating clips!</p>
+    </div>
+  </div>
+</div>
 
         <!-- Page: Presets -->
         <div class="page" id="page-presets">
@@ -1085,10 +1090,13 @@
           </div>
 
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">Saved Keys (<span id="key-count">0</span>)</div>
-              <span class="badge badge-success" id="total-credit-badge">$0 credit</span>
-            </div>
+              <div class="card-header">
+                  <div class="card-title">Saved Keys (<span id="key-count">0</span>)</div>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="badge" style="background: var(--accent-glow); color: var(--accent);" id="total-credit-badge">$0 credit</span>
+                    <button class="btn btn-secondary btn-sm" onclick="checkAllCredit()">&#128200; Check Credits</button>
+                  </div>
+                </div>
             <div id="keys-list">
               <div class="empty-state">
                 <div class="empty-icon">&#128273;</div>
@@ -1141,6 +1149,7 @@
         desc: 'Insight, hot take, banter',
         min_duration: 30, max_duration: 90, target_duration: 60,
         captions: true, reframe: false, emojis: false, remove_silences: true, intro_title: false,
+        stylePresetId: 'mNpsvuTzw499',
         context: 'Podcast conversation. Cari momen: kutipan insight mendalam, hot take kontroversial, momen emosional, cerita personal yang relatable, joke/banter lucu antar host. Hindari: intro/outro, iklan, small talk kosong.',
         tips: [
           'Fokus ke momen dimana host bilang sesuatu kontroversial atau surprising',
@@ -1263,6 +1272,12 @@
       loadHistory();
       selectPreset('Custom');
       updateKeySelector();
+      // Navigate to page from URL hash, default to create
+      const pageFromHash = window.location.hash.replace('#', '') || 'create';
+      const validPages = ['create', 'results', 'history', 'presets', 'users', 'keys', 'editor', 'settings'];
+      navigateTo(validPages.includes(pageFromHash) ? pageFromHash : 'create');
+      // Auto-check credits after 2 seconds
+      setTimeout(() => checkAllCredit(true), 2000);
     }
 
     function logout() {
@@ -1274,30 +1289,20 @@
     // ========================
     // NAVIGATION
     // ========================
+    const PAGE_TITLES = {
+      create: 'Create New Clip',
+      results: 'Clip Results',
+      history: 'Processing History',
+      presets: 'Content Presets',
+      users: 'Managed Users',
+      keys: 'Key Manager',
+      editor: 'Klap Editor',
+      settings: 'Settings'
+    };
+
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', () => {
-        const page = item.dataset.page;
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        item.classList.add('active');
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(`page-${page}`).classList.add('active');
-
-        const titles = {
-          create: 'Create New Clip',
-          results: 'Clip Results',
-          history: 'Processing History',
-          presets: 'Content Presets',
-          users: 'Managed Users',
-          keys: 'Key Manager',
-          editor: 'Klap Editor',
-          settings: 'Settings'
-        };
-        document.getElementById('topbar-title').textContent = titles[page] || '';
-
-        if (page === 'presets') renderPresetsDetailPage();
-        if (page === 'users') renderUsers();
-        if (page === 'keys') renderKeyManager();
-        if (page === 'editor') refreshPlayers();
+        navigateTo(item.dataset.page);
       });
     });
 
@@ -1351,6 +1356,9 @@
         document.getElementById('input-caption-style').value = 'bold';
       }
 
+      // Style Preset ID — auto-fill if preset has one, clear otherwise
+      document.getElementById('input-style-preset').value = preset.stylePresetId || '';
+
       // Update detail panel
       renderPresetDetail(name, preset);
     }
@@ -1360,6 +1368,13 @@
       const body = document.getElementById('preset-detail-body');
 
       let html = '';
+      if (preset.stylePresetId) {
+        html += `<div style="background: rgba(0,255,136,0.08); padding: 10px 16px; border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 13px; border-left: 3px solid var(--primary);">
+          <strong style="color: var(--primary);">Style Preset:</strong>
+          <code style="color: var(--text); margin-left: 8px;">${preset.stylePresetId}</code>
+          <span style="color: var(--text-muted); font-size: 12px; display: block; margin-top: 4px;">Caption style dari Klap editor</span>
+        </div>`;
+      }
       if (preset.context) {
         html += `<div style="background: var(--bg); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 13px; color: var(--text-dim); line-height: 1.6;">
           <strong style="color: var(--accent);">AI Context:</strong><br>${preset.context}
@@ -1449,6 +1464,13 @@
         const jobId = data.jobId;
         navigateTo('results');
         listenJob(jobId);
+        // Auto-check credit for the used key
+        setTimeout(() => {
+          const usedKey = getSelectedKey();
+          const idx = savedKeys.findIndex(k => k.key === usedKey);
+          if (idx >= 0) checkCredit(idx);
+          else checkAllCredit(true);
+        }, 5000);
       } catch(e) {
         showToast('Error: ' + e.message);
       }
@@ -1482,12 +1504,14 @@
           es.close();
           showResults(msg.data);
           showToast('All clips ready!');
+          setTimeout(() => { checkAllCredit(true); }, 3000);
         } else if (msg.event === 'error') {
           showProcessing(false);
           activeJobStream = null;
           es.close();
           showToast('Error: ' + msg.data);
           updateStep(1, 'Error: ' + msg.data, 'error');
+          setTimeout(() => { checkAllCredit(true); }, 3000);
         }
       };
 
@@ -1656,6 +1680,22 @@
     // ========================
     let historyJobs = [];
 
+    let historyRefreshInterval = null;
+
+    async function clearAllHistory() {
+      if (!confirm('Hapus semua history job? Data tidak bisa dikembalikan.')) return;
+      try {
+        const jobs = historyJobs;
+        for (const j of jobs) {
+          await fetch('/api/jobs/' + j.id, { method: 'DELETE' });
+        }
+        showToast('History cleared');
+        loadHistory();
+      } catch(e) {
+        showToast('Error: ' + e.message);
+      }
+    }
+
     async function loadHistory() {
       try {
         const res = await fetch('/api/jobs');
@@ -1668,6 +1708,35 @@
       }
     }
 
+    function startHistoryAutoRefresh() {
+      if (historyRefreshInterval) clearInterval(historyRefreshInterval);
+      historyRefreshInterval = setInterval(loadHistory, 30000);
+    }
+
+    function navigateTo(page) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => {
+        if (n.dataset.page === page) n.classList.add('active');
+      });
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById('page-' + page);
+      if (target) {
+        target.classList.add('active');
+        document.getElementById('topbar-title').textContent = PAGE_TITLES[page] || '';
+        window.location.hash = page;
+        if (page === 'history') { loadHistory(); startHistoryAutoRefresh(); }
+        else if (page === 'keys') renderKeyManager();
+        else if (page === 'settings') loadSettings();
+        else if (page === 'presets') renderPresetsDetailPage();
+        else if (page === 'users') renderUsers();
+        else if (page === 'editor') refreshPlayers();
+        if (historyRefreshInterval && page !== 'history') {
+          clearInterval(historyRefreshInterval);
+          historyRefreshInterval = null;
+        }
+      }
+    }
+
     function renderHistory() {
       const container = document.getElementById('history-list');
       if (!container) return;
@@ -1676,20 +1745,26 @@
         return;
       }
       container.innerHTML = historyJobs.map(j => {
-        const statusColor = j.status === 'completed' ? 'var(--accent)' : j.status === 'error' ? 'var(--danger)' : 'var(--warning)';
+        const isError = j.status === 'error';
+        const isDone = j.status === 'completed';
+        const statusColor = isDone ? 'var(--accent)' : isError ? 'var(--danger)' : 'var(--warning)';
+        const errorMsg = j.error ? j.error : '';
+        const clipsInfo = j.stats ? `${j.stats.completedClips || 0}/${j.stats.totalClips || j.count || 0} clips` : `${j.count || 0} clips`;
         return `
-          <div class="user-card" onclick="viewHistoryJob('${j.id}')" style="cursor:pointer;">
+          <div class="user-card ${isError ? 'error-card' : ''}" onclick="viewHistoryJob('${j.id}')" style="cursor:pointer; ${isError ? 'border-left: 3px solid var(--danger);' : ''}">
             <div class="user-avatar" style="background: ${statusColor};">${j.presetName?.charAt(0) || 'C'}</div>
             <div class="user-info">
-              <div class="user-name">${j.url?.slice(0, 50) || 'Unknown'}...</div>
+              <div class="user-name">${j.url?.slice(0, 60) || 'Unknown'}</div>
               <div class="user-meta">
-                ${j.presetName || '-'} | ${j.count || 0} clips | 
+                ${j.presetName || '-'} | ${clipsInfo} | 
                 Status: <span style="color:${statusColor};">${j.status}</span>
-                ${j.stats?.avgVirality ? `| Avg Virality: ${j.stats.avgVirality}%` : ''}
+                ${j.stats?.avgVirality ? `| Virality: ${j.stats.avgVirality}%` : ''}
+                ${errorMsg ? `<br><span style="color: var(--danger); font-size: 12px;">&#9888; ${errorMsg}</span>` : ''}
               </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-dim);">
-              ${new Date(j.createdAt).toLocaleString('id-ID')}
+            <div style="font-size: 12px; color: var(--text-dim); text-align: right;">
+              <div>${new Date(j.createdAt).toLocaleString('id-ID')}</div>
+              ${j.endedAt ? `<div style="margin-top: 4px; font-size: 11px;">${new Date(j.endedAt).toLocaleString('id-ID')}</div>` : ''}
             </div>
           </div>
         `;
@@ -1976,7 +2051,8 @@
       select.innerHTML = '<option value="">Pilih API key...</option>' +
         savedKeys.map((k, i) => {
           const label = k.email ? k.email.slice(0, 20) + '...' : k.key.slice(0, 16) + '...';
-          const creditInfo = k.creditUsed !== undefined ? ` ($${(5 - k.creditUsed).toFixed(2)} left)` : '';
+          const credit = k.realCredit !== undefined ? k.realCredit : ((k.creditTotal || 5) - (k.creditUsed || 0));
+          const creditInfo = k.realCredit !== undefined ? ` ($${Math.max(0, credit).toFixed(2)} left)` : '';
           return `<option value="${i}">${label}${creditInfo}</option>`;
         }).join('') +
         '<option value="__manual__">Manual input...</option>';
@@ -2054,10 +2130,10 @@
               <div class="key-value">${result.key}</div>
               <div class="key-email">📧 ${result.email} | 💰 $5 credit ready</div>
             `;
-            addLog('✅ Key saved!', 'done');
-            renderKeyManager();
-            showToast('Key generated & saved!');
-            keyGenInProgress = false;
+        addLog('✅ Key saved!', 'done');
+        renderKeyManager();
+        showToast('Key generated & saved!');
+        keyGenInProgress = false;
             btn.disabled = false;
             btn.textContent = '⚡ Generate New Key';
           } else if (data.step === 'error') {
@@ -2100,21 +2176,31 @@
 
     function renderKeyManager() {
       loadKeys();
+      ensureCreditChecked();
       document.getElementById('key-count').textContent = savedKeys.length;
-
-      const totalCredit = savedKeys.reduce((sum, k) => sum + (k.creditTotal || 5), 0);
-      const usedCredit = savedKeys.reduce((sum, k) => sum + (k.creditUsed || 0), 0);
-      document.getElementById('total-credit-badge').textContent = `$${(totalCredit - usedCredit).toFixed(2)} credit`;
 
       const list = document.getElementById('keys-list');
       if (!savedKeys.length) {
+        document.getElementById('total-credit-badge').textContent = '$0 credit';
         list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128273;</div><p>Belum ada API key. Generate satu sekarang!</p></div>';
         return;
       }
 
+      let totalRemaining = 0;
+      let totalKnown = 0;
       list.innerHTML = savedKeys.map((k, i) => {
-        const remaining = (k.creditTotal || 5) - (k.creditUsed || 0);
+        const remaining = (k.realCredit !== undefined ? k.realCredit : (k.creditTotal || 5) - (k.creditUsed || 0));
+        const maxCredit = k.creditTotal || 5;
+        const creditDisplay = k.realCredit !== undefined
+          ? `$(real) <span style="color: ${remaining > 0 ? 'var(--accent)' : 'var(--danger)'};">${remaining > 0 ? '$' + remaining.toFixed(2) : 'OUT'}</span>`
+          : `<span style="color: var(--text-muted);">$? — <button class="btn btn-sm" onclick="event.stopPropagation();checkCredit(${i})" style="background:none;border:1px solid var(--border);color:var(--text-dim);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:11px;">check</button></span>`;
         const emailShort = k.email ? k.email.slice(0, 30) + (k.email.length > 30 ? '...' : '') : '-';
+
+        if (k.realCredit !== undefined) {
+          totalRemaining += Math.max(0, remaining);
+          totalKnown++;
+        }
+
         return `
           <div class="user-card" style="margin-bottom: 8px;">
             <div class="user-avatar" style="background: linear-gradient(135deg, #6c3bfc, #00e5a0);">K</div>
@@ -2122,27 +2208,93 @@
               <div class="user-name">${emailShort}</div>
               <div class="user-meta">
                 Key: ${k.key.slice(0, 20)}...${k.key.slice(-6)} |
-                Credit: <span style="color: ${remaining > 0 ? 'var(--accent)' : 'var(--danger)'};">$${remaining.toFixed(2)}</span> / $${(k.creditTotal || 5).toFixed(2)}
+                Credit: ${creditDisplay}
               </div>
             </div>
             <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary btn-sm" onclick="checkCredit(${i})" title="Check real credit from Klap">&#128200;</button>
               <button class="btn btn-primary btn-sm" onclick="copyKeyValue('${k.key}')">Copy</button>
               <button class="btn btn-danger btn-sm" onclick="deleteKey(${i})">Delete</button>
             </div>
           </div>
         `;
       }).join('');
+
+      const badge = document.getElementById('total-credit-badge');
+      if (totalKnown > 0) {
+        badge.textContent = `$${totalRemaining.toFixed(2)} credit (${totalKnown}/${savedKeys.length} keys known)`;
+        badge.style.background = totalRemaining > 0 ? 'var(--accent-glow)' : 'rgba(255,68,102,0.15)';
+        badge.style.color = totalRemaining > 0 ? 'var(--accent)' : 'var(--danger)';
+      } else {
+        badge.textContent = `$? credit (click Check Credits)`;
+        badge.style.background = 'var(--accent-glow)';
+        badge.style.color = 'var(--accent)';
+      }
+    }
+
+    let lastCreditCheck = 0;
+    const CREDIT_CHECK_INTERVAL = 30000; // 30 detik
+
+    async function checkCredit(idx) {
+      const k = savedKeys[idx];
+      if (!k) return;
+      try {
+        const keyParam = `${encodeURIComponent(k.email || '')}:${encodeURIComponent(k.key)}`;
+        const res = await fetch('/api/keys/check-credit?keys=' + encodeURIComponent(keyParam));
+        const data = await res.json();
+        if (data.keys) {
+          const match = data.keys.find(ck => ck.key === k.key);
+          if (match && match.ok) {
+            savedKeys[idx].realCredit = match.credit !== null ? match.credit : (k.realCredit || (k.creditTotal || 5));
+            saveKeys();
+          }
+        }
+        renderKeyManager();
+      } catch(e) {}
+    }
+
+    async function checkAllCredit(silent = true) {
+      if (!silent) showToast('Checking all keys credit...');
+      try {
+        lastCreditCheck = Date.now();
+        // Kirim semua key dari localStorage sebagai query param
+        const keyParam = savedKeys.map(k => `${encodeURIComponent(k.email || '')}:${encodeURIComponent(k.key)}`).join(',');
+        const res = await fetch('/api/keys/check-credit?keys=' + encodeURIComponent(keyParam));
+        const data = await res.json();
+        if (data.keys) {
+          data.keys.forEach(ck => {
+            if (!ck.ok) return;
+            const idx = savedKeys.findIndex(sk => sk.key === ck.key);
+            if (idx >= 0) savedKeys[idx].realCredit = ck.credit;
+          });
+          saveKeys();
+          if (!silent) {
+            const ok = data.keys.filter(k => k.ok).length;
+            showToast(`Checked ${ok}/${savedKeys.length} keys`);
+          }
+        }
+        renderKeyManager();
+        updateKeySelector();
+      } catch(e) {
+        if (!silent) showToast('Error: ' + e.message);
+      }
+    }
+
+    // Auto-check credit every 30 detik, dipanggil dari renderKeyManager
+    function ensureCreditChecked() {
+      const now = Date.now();
+      if (now - lastCreditCheck > CREDIT_CHECK_INTERVAL && savedKeys.length > 0) {
+        checkAllCredit(true);
+      }
     }
 
     // ========================
     // UTILS
     // ========================
-    function navigateTo(page) {
+    function updateNav(page) {
       document.querySelectorAll('.nav-item').forEach(n => {
         n.classList.toggle('active', n.dataset.page === page);
       });
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.getElementById(`page-${page}`).classList.add('active');
     }
 
     function copyLink(url) {

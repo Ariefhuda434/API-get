@@ -1,0 +1,21 @@
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h2>Klap Editor</h2>
+              <p>Edit your clips directly in the Klap embed player</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <select class="form-select" id="embed-user-select" style="min-width: 200px; padding: 8px 12px; font-size: 13px;">
+                <option value="">Select managed user...</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="refreshPlayers()">&#8635; Refresh</button>
+            </div>
+          </div>
+
+          <div id="embed-empty" class="empty-state">
+            <div class="empty-icon">&#128249;</div>
+            <p>No clips to embed. Create clips from the <strong>Create New</strong> page first, then come here to edit them in the Klap editor.</p>
+          </div>
+
+          <div id="embed-grid" class="grid-3" style="display: none;">
+            <!-- Embed cards filled by JS -->
+          </div>

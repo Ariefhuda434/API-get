@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viral Cut Pro - Dashboard</title>
+  <link rel="stylesheet" href="/dashboard/css/style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">V</div>
+        <h1>Viral Cut Pro</h1>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <div class="nav-item active" data-page="create">
+          <span class="nav-icon">+</span> Create New
+        </div>
+        <div class="nav-item" data-page="results">
+          <span class="nav-icon">&#9733;</span> Results
+        </div>
+        <div class="nav-item" data-page="history">
+          <span class="nav-icon">&#8635;</span> History
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Settings</div>
+        <div class="nav-item" data-page="presets">
+          <span class="nav-icon">&#9881;</span> Presets
+        </div>
+        <div class="nav-item" data-page="users">
+          <span class="nav-icon">&#128101;</span> Managed Users
+        </div>
+        <div class="nav-item" data-page="keys">
+          <span class="nav-icon">&#128273;</span> Key Manager
+        </div>
+        <div class="nav-item" data-page="editor">
+          <span class="nav-icon">&#128249;</span> Klap Editor
+        </div>
+        <div class="nav-item" data-page="settings">
+          <span class="nav-icon">&#9878;</span> Settings
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <div onclick="logout()" style="cursor:pointer;color:var(--danger);font-size:13px;margin-bottom:6px;">&#128682; Logout</div>
+        Viral Cut Pro v2.0<br>
+        Powered by Klap API
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+      <div class="topbar">
+        <div class="topbar-title" id="topbar-title">Create New Clip</div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary btn-sm" id="btn-submit" onclick="submitJob()">
+            &#9889; Generate Clips
+          </button>
+        </div>
+      </div>
+      <div class="content" id="page-content"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span id="toast-msg"></span>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="/dashboard/js/app.js"></script>
+  <script src="/dashboard/js/pages/keys.js"></script>
+  <script src="/dashboard/js/pages/create.js"></script>
+  <script src="/dashboard/js/pages/results.js"></script>
+  <script src="/dashboard/js/pages/history.js"></script>
+  <script src="/dashboard/js/pages/presets.js"></script>
+  <script src="/dashboard/js/pages/settings.js"></script>
+  <script src="/dashboard/js/pages/users.js"></script>
+  <script>init();</script>
+</body>
+</html>

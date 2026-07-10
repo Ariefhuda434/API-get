@@ -1,5 +1,5 @@
 const EventEmitter = require('events');
-const { createJob, updateJob, getJob } = require('./db');
+const { createJob, updateJob, getJob, updateKeyCreditByApiKey } = require('./db');
 const { trimAndUpload } = require('./video-trimmer');
 
 const jobEmitter = new EventEmitter();
@@ -220,6 +220,12 @@ async function processJobWithData(jobId, job) {
     updateJob(jobId, finalResult);
     emit(jobId, 'done', finalResult);
 
+    // Deduct credit for used key
+    try {
+      const count = clipLimit || 5;
+      updateKeyCreditByApiKey(apiKey, Math.min(count, 10));
+    } catch(e) {}
+
   } catch (err) {
     const msg = err.message;
     console.error(`[Job ${jobId}] Error:`, msg);
@@ -247,18 +253,19 @@ async function processJobWithData(jobId, job) {
         return processJobWithData(jobId, newJob);
       } else {
         const msg2 = `Video terlalu panjang (${Math.round((result.originalDuration || 0) / 60)} menit). Klap max ~45 menit untuk YouTube.`;
-        updateJob(jobId, { status: 'error', error: msg2, endedAt: new Date().toISOString() });
+        updateJob(jobId, { status: 'error', error: msg2, errorNote: `video_too_long after trim: ${Math.round((result.originalDuration || 0) / 60)}m`, endedAt: new Date().toISOString() });
         emit(jobId, 'error', msg2);
         return;
       }
     }
 
+    const detailNote = `Step: ${getJob(jobId)?.status || 'unknown'} | ${msg}`;
     const userMsg = msg.includes('payment-required') || msg.includes('Not enough credits')
       ? 'Kredit Klap tidak cukup. Top up di klap.app atau kurangi jumlah clips.'
       : msg.includes('yt_video_not_available')
       ? 'Video tidak tersedia di region Klap. Coba URL YouTube lain.'
       : msg;
-    updateJob(jobId, { status: 'error', error: userMsg, endedAt: new Date().toISOString() });
+    updateJob(jobId, { status: 'error', error: userMsg, errorNote: detailNote, endedAt: new Date().toISOString() });
     emit(jobId, 'error', userMsg);
   } finally {
     ACTIVE_JOBS.delete(jobId);

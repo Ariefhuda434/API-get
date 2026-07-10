@@ -1,0 +1,21 @@
+          <div class="section-header">
+            <h2>API Configuration</h2>
+            <p>Configure your Klap API key and notification settings</p>
+          </div>
+          <div class="card" style="max-width: 600px;">
+            <div class="form-group">
+              <label class="form-label">Klap API Key</label>
+              <input type="password" class="form-input" id="input-settings-api-key" placeholder="Masukkan API key (tanpa 'Bearer')" />
+              <div class="form-hint">Get your key from klap.app dashboard</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">n8n Webhook URL</label>
+              <input type="text" class="form-input" id="input-webhook" placeholder="https://your-n8n.com/webhook/..." />
+              <div class="form-hint">Point to your n8n Form Trigger webhook. Leave blank to use Klap API directly.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telegram Chat ID</label>
+              <input type="text" class="form-input" id="input-telegram-id" placeholder="6601941001" />
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+          </div>

@@ -5,7 +5,8 @@ const { getKlapApiKey } = require('./klap-automation');
 const { processFormSubmission, pollTask, getVideoUrl } = require('./webhook');
 const { requireAuth } = require('./auth');
 const { postToTikTok } = require('./tiktok-poster');
-const { getAllJobs, getJob, createJob, updateJob, getAllKeys, saveKey } = require('./db');
+const { fullEdit, getVideoInfo, downloadVideo } = require('./video-editor');
+const { getAllJobs, getJob, createJob, updateJob, getAllKeys, saveKey, updateKey, getKey } = require('./db');
 const { startJob, subscribeJob } = require('./job-processor');
 
 const app = express();
@@ -43,12 +44,12 @@ function sseKeepalive(res) {
   return interval;
 }
 
-// Track active get-key processes per session to prevent duplicates on reconnect
-const activeGetKey = new Map();
+// Cache get-key results per session so EventSource reconnects don't get blocked
+const keyGenCache = new Map(); // sessionKey -> { promise, events }
 
 // Root route — catch BEFORE express.static so index.html doesn't hijack it
 app.get('/', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
 
 // Static files (login.html, dashboard assets, etc.)
@@ -76,35 +77,53 @@ app.get('/api/auth/check', (req, res) => {
 });
 
 // GET /api/get-key — auto-get Klap API key (requires auth)
+// Caches result per session so EventSource browser reconnects get the same data
 app.get('/api/get-key', requireAuth, async (req, res) => {
-  // Prevent duplicate processes on EventSource reconnect
   const sessionKey = req.sessionID || req.ip;
-  if (activeGetKey.get(sessionKey)) {
-    return res.end();
-  }
-  activeGetKey.set(sessionKey, true);
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
-  const keepalive = sseKeepalive(res);
-
   const sendEvent = (step, message) => {
     res.write(`data: ${JSON.stringify({ step, message })}\n\n`);
   };
 
+  // If a key-gen is already running for this session, replay events + wait for result
+  const cached = keyGenCache.get(sessionKey);
+  if (cached) {
+    for (const evt of cached.events) {
+      sendEvent(evt.step, evt.message);
+    }
+    try {
+      const result = await cached.promise;
+      sendEvent('done', JSON.stringify(result));
+    } catch (err) {
+      sendEvent('error', err.message);
+    }
+    res.end();
+    return;
+  }
+
+  const events = [];
+  const promise = getKlapApiKey(({ step, message }) => {
+    events.push({ step, message });
+    sendEvent(step, message);
+  });
+
+  keyGenCache.set(sessionKey, { promise, events });
+
+  const keepalive = sseKeepalive(res);
+
   try {
-    const result = await getKlapApiKey(({ step, message }) => {
-      sendEvent(step, message);
-    });
+    const result = await promise;
     sendEvent('done', JSON.stringify(result));
   } catch (err) {
     sendEvent('error', err.message);
   } finally {
     clearInterval(keepalive);
-    activeGetKey.delete(sessionKey);
+    keyGenCache.delete(sessionKey);
     res.end();
   }
 });
@@ -208,14 +227,45 @@ app.post('/api/keys', requireAuth, (req, res) => {
 });
 
 // PUT /api/keys/:id — Update key (e.g. credit balance)
-app.put('/api/keys/:id', requireAuth, (req, res) => {
-  const { deleteKey } = require('./db');
-  const old = getJob(req.params.id); // just for exists check
+app.put('/api/keys/:id', requireAuth, async (req, res) => {
+  const old = getKey(req.params.id);
   if (!old) return res.status(404).json({ error: 'Key not found' });
-  // Re-save with updated data
   deleteKey(req.params.id);
   saveKey({ ...old, ...req.body, id: req.params.id });
   res.json({ success: true });
+});
+
+// GET /api/keys/check-credit — Check stored credit from local DB
+// If ?keys=... is provided, looks up those API keys in the DB
+app.get('/api/keys/check-credit', requireAuth, (req, res) => {
+  let keyList = getAllKeys();
+  if (req.query.keys) {
+    const searchKeys = req.query.keys.split(',').map(pair => {
+      const [email, key] = pair.split(':');
+      return key || '';
+    }).filter(Boolean);
+    keyList = keyList.filter(k => searchKeys.includes(k.key));
+  }
+  const results = keyList.map(k => ({
+    id: k.id, email: k.email, key: k.key,
+    credit: Math.max(0, (k.creditTotal || 5) - (k.creditUsed || 0)),
+    ok: true,
+  }));
+  res.json({ keys: results });
+});
+
+// GET /api/keys/check-credit-real — Login to Klap & get real credit balance
+app.get('/api/keys/check-credit-real', requireAuth, async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  try {
+    const { getKlapCredit } = require('./klap-automation');
+    const result = await getKlapCredit(email);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE /api/keys/:id — Delete a key
@@ -312,11 +362,14 @@ app.post('/api/jobs', requireAuth, async (req, res) => {
   res.json({ success: true, jobId: id });
 });
 
-// GET /api/jobs — List all jobs
+// GET /api/jobs — List all jobs (with error details)
 app.get('/api/jobs', requireAuth, (req, res) => {
   const jobs = getAllJobs().map(j => ({
     id: j.id, url: j.url, presetName: j.presetName, count: j.count,
     status: j.status, message: j.message, stats: j.stats,
+    error: j.error || null, errorNote: j.errorNote || null,
+    clipsTotal: j.clipsTotal || 0, exportsTotal: j.exportsTotal || 0,
+    taskId: j.taskId || null,
     createdAt: j.createdAt, endedAt: j.endedAt,
   }));
   res.json({ jobs });
@@ -365,6 +418,115 @@ app.get('/api/jobs/:id/stream', requireAuth, async (req, res) => {
   });
 });
 
+// ── Video Editor API ──────────────────────────────────────────────────
+
+// POST /api/video/edit — download + edit video (intro title, fade, BGM)
+app.post('/api/video/edit', requireAuth, async (req, res) => {
+  const {
+    videoUrl,
+    videoPath,
+    title = '',
+    subtitle = '',
+    introDuration = 3,
+    bgm,
+    bgmVolume = 0.15,
+    fadeIn = 0.3,
+    fadeOut = 0.5,
+    template = '',
+    style = null,
+    background = null,
+    titleColor = null,
+    subtitleColor = null,
+    titleSize = null,
+    subtitleSize = null,
+    position = null,
+  } = req.body;
+
+  if (!videoUrl && !videoPath) {
+    return res.status(400).json({ success: false, error: 'videoUrl atau videoPath wajib diisi' });
+  }
+
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    const result = await fullEdit({
+      videoUrl,
+      videoPath,
+      title,
+      subtitle,
+      introDuration,
+      bgmPath: bgm ? path.join(__dirname, 'music', bgm) : '',
+      bgmVolume,
+      fadeIn,
+      fadeOut,
+      template,
+      style,
+      background,
+      titleColor,
+      subtitleColor,
+      titleSize,
+      subtitleSize,
+      position,
+    });
+
+    res.json({
+      success: true,
+      outputPath: `/api/video/download/${result.fileName}`,
+      fileName: result.fileName,
+      duration: result.duration,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/video/download/:file — serve edited video
+app.get('/api/video/download/:file', requireAuth, (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const filePath = path.join(__dirname, 'output', req.params.file);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.download(filePath);
+});
+
+// GET /api/video/music — list available BGM tracks
+app.get('/api/video/music', requireAuth, (req, res) => {
+  const fs = require('fs');
+  const musicDir = path.join(__dirname, 'music');
+  if (!fs.existsSync(musicDir)) {
+    return res.json({ tracks: [] });
+  }
+  const files = fs.readdirSync(musicDir).filter(f => /\.(mp3|wav|ogg|m4a)$/i.test(f));
+  res.json({ tracks: files });
+});
+
+// GET /api/video/templates — list available title templates
+app.get('/api/video/templates', requireAuth, (req, res) => {
+  const { TITLE_TEMPLATES } = require('./video-editor');
+  res.json({ templates: Object.keys(TITLE_TEMPLATES) });
+});
+
+// POST /api/video/test — quick test edit with sample params
+app.post('/api/video/test', requireAuth, async (req, res) => {
+  const { videoUrl } = req.body;
+  if (!videoUrl) return res.status(400).json({ error: 'videoUrl required' });
+  try {
+    const result = await fullEdit({
+      videoUrl,
+      title: 'Viral Clip',
+      subtitle: 'Powered by AI',
+      introDuration: 3,
+      fadeIn: 0.3,
+      fadeOut: 0.5,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Klap API Proxy (bypass CORS) ──────────────────────────────────────
 // Dashboard calls /api/klap/*, server forwards to https://api.klap.app/v2/*
 
@@ -396,6 +558,8 @@ app.use('/api/klap', async (req, res) => {
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Webhook:    http://localhost:${PORT}/api/webhook/process-form`);
+  console.log(`Video Edit: http://localhost:${PORT}/api/video/edit`);
+  console.log(`Music:      http://localhost:${PORT}/api/video/music`);
   console.log(`Dashboard:  http://localhost:${PORT}/`);
   console.log(`Login:      http://localhost:${PORT}/login.html`);
 });

@@ -1,0 +1,14 @@
+          <div class="section-header">
+            <h2>Processing History</h2>
+            <p>All your previous clip generations</p>
+          </div>
+          <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-sm" onclick="loadHistory()">&#128260; Refresh</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAllHistory()">&#128465; Clear All</button>
+          </div>
+          <div id="history-list">
+            <div class="empty-state">
+              <div class="empty-icon">&#128214;</div>
+              <p>No history yet. Start generating clips!</p>
+            </div>
+          </div>

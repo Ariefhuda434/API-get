@@ -1,0 +1,52 @@
+          <div class="section-header">
+            <h2>Clip Results</h2>
+            <p>Sorted by virality score - best clips first</p>
+          </div>
+
+          <div id="results-area">
+            <!-- Stats -->
+            <div class="grid-4" id="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value" id="stat-total" style="color: var(--primary);">0</div>
+                <div class="stat-label">Total Clips</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-avg" style="color: var(--accent);">0%</div>
+                <div class="stat-label">Avg Virality</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-best" style="color: var(--fire-high);">0%</div>
+                <div class="stat-label">Best Score</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-preset" style="color: var(--warning);">-</div>
+                <div class="stat-label">Preset Used</div>
+              </div>
+            </div>
+
+            <div class="grid-3" id="clips-grid">
+              <!-- Clip cards filled by JS -->
+            </div>
+
+            <div class="empty-state" id="results-empty">
+              <div class="empty-icon">&#127916;</div>
+              <p>No results yet. Create clips to see them here.</p>
+            </div>
+          </div>
+
+          <!-- Processing state -->
+          <div id="processing-area" style="display: none;">
+            <div class="processing-card">
+              <div class="spinner"></div>
+              <h3 style="margin-bottom: 8px;">Processing your video...</h3>
+              <p style="color: var(--text-dim); font-size: 14px;" id="processing-status">Analyzing content with AI</p>
+              <div class="progress-steps" style="max-width: 400px; margin: 20px auto 0;">
+                <div class="progress-step active" id="step-1"></div>
+                <div class="progress-step" id="step-2"></div>
+                <div class="progress-step" id="step-3"></div>
+                <div class="progress-step" id="step-4"></div>
+                <div class="progress-step" id="step-5"></div>
+              </div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;" id="step-label">Step 1/5: Submitting video</p>
+            </div>
+          </div>

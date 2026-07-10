@@ -1,0 +1,108 @@
+          <div class="section-header">
+            <h2>Create Viral Clips</h2>
+            <p>Paste your YouTube link, pick a content preset, and let AI find the best moments</p>
+          </div>
+
+          <div class="grid-2">
+            <!-- Left: Form -->
+            <div>
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Video Source</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">YouTube URL</label>
+                  <input type="text" class="form-input" id="input-url" placeholder="https://youtu.be/..." />
+                  <div class="form-hint">Paste any YouTube video link</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Jumlah Clips</label>
+                  <div class="range-group">
+                    <input type="range" min="1" max="20" value="5" id="input-count" oninput="document.getElementById('count-val').textContent = this.value" />
+                    <span class="range-value" id="count-val">5</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Custom Briefing</label>
+                  <textarea class="form-textarea" id="input-briefing" placeholder="e.g. Fokus ke momen lucu, insight penting, atau tips actionable..."></textarea>
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">API Key</div>
+                  <a href="#" onclick="navigateTo('keys'); return false;" style="color: var(--primary); font-size: 13px;">Manage Keys</a>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Pilih API Key</label>
+                  <select class="form-select" id="input-api-key-select" onchange="onKeySelectChange()">
+                    <option value="">Pilih API key...</option>
+                  </select>
+                </div>
+                <div class="form-group" id="input-api-key-manual" style="display: none; margin-bottom: 0;">
+                  <label class="form-label">Manual API Key</label>
+                  <input type="password" class="form-input" id="input-api-key" placeholder="Masukkan API key (tanpa 'Bearer')" />
+                  <div class="form-hint">Get from klap.app/rest-api or generate from <a href="#" onclick="navigateTo('keys'); return false;" style="color: var(--primary);">Key Manager</a></div>
+                </div>
+              </div>
+
+              <!-- Hidden style settings — auto-set by preset selection -->
+              <div style="display:none">
+                <select id="input-caption-style"><option value="bold">Bold</option></select>
+                <input type="text" id="input-style-preset" />
+                <div class="toggle active" id="toggle-reframe"></div>
+                <div class="toggle active" id="toggle-emoji"></div>
+                <div class="toggle active" id="toggle-silence"></div>
+                <div class="toggle" id="toggle-intro"></div>
+              </div>
+            </div>
+
+            <!-- Right: Preset Picker -->
+            <div>
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Content Preset</div>
+                  <span class="badge badge-info">AI-optimized</span>
+                </div>
+                <div class="grid-3" id="preset-grid">
+                  <!-- Filled by JS -->
+                </div>
+              </div>
+
+              <div class="card" id="preset-detail">
+                <div class="card-header">
+                  <div class="card-title" id="preset-detail-title">Preset Details</div>
+                </div>
+                <div id="preset-detail-body">
+                  <p style="color: var(--text-muted); font-size: 14px;">Select a preset to see AI optimization details</p>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Duration Range</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Min Duration (detik)</label>
+                  <div class="range-group">
+                    <input type="range" min="5" max="60" value="15" id="input-min-dur" oninput="document.getElementById('min-dur-val').textContent = this.value + 's'" />
+                    <span class="range-value" id="min-dur-val">15s</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Max Duration (detik)</label>
+                  <div class="range-group">
+                    <input type="range" min="15" max="180" value="60" id="input-max-dur" oninput="document.getElementById('max-dur-val').textContent = this.value + 's'" />
+                    <span class="range-value" id="max-dur-val">60s</span>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Target Duration (detik)</label>
+                  <div class="range-group">
+                    <input type="range" min="10" max="120" value="30" id="input-target-dur" oninput="document.getElementById('target-dur-val').textContent = this.value + 's'" />
+                    <span class="range-value" id="target-dur-val">30s</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>

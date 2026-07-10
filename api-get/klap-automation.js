@@ -36,12 +36,12 @@ async function createTempEmail() {
 }
 
 async function signup(page, email) {
-  await page.goto(`${KLAP_URL}/signup`, { waitUntil: 'networkidle' });
-  await sleep(1000);
+  await page.goto(`${KLAP_URL}/signup`, { waitUntil: 'load', timeout: 30000 });
+  await sleep(2000);
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', 'AutoPass123!');
-  await page.click('button:has-text("Sign up")');
-  await sleep(3000);
+  await page.getByRole('button', { name: 'Sign up', exact: true }).click();
+  await sleep(5000);
   const t = await page.evaluate(() => document.body.innerText);
   if (!t.includes('Confirmation email sent')) {
     throw new Error('Signup failed - no confirmation message');
@@ -84,7 +84,7 @@ async function waitForVerify(token, provider) {
 }
 
 async function createAndGetApiKey(page) {
-  await page.goto(`${KLAP_URL}/rest-api`, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto(`${KLAP_URL}/rest-api`, { waitUntil: 'load', timeout: 30000 });
   await sleep(2000);
 
   const text = await page.evaluate(() => document.body.innerText);
@@ -143,7 +143,7 @@ async function getKlapApiKey(onProgress) {
     const link = await waitForVerify(token, provider);
 
     onProgress({ step: 'confirm', message: 'Mengkonfirmasi email...' });
-    await page.goto(link, { waitUntil: 'networkidle' });
+    await page.goto(link, { waitUntil: 'load' });
     await sleep(3000);
 
     onProgress({ step: 'key', message: 'Membuat API Key...' });
@@ -159,4 +159,47 @@ async function getKlapApiKey(onProgress) {
   }
 }
 
-module.exports = { getKlapApiKey };
+async function getKlapCredit(email) {
+  const launchOpts = { headless: true };
+  if (process.env.CHROMIUM_PATH) launchOpts.executablePath = process.env.CHROMIUM_PATH;
+  const browser = await chromium.launch(launchOpts);
+  const page = await browser.newPage();
+
+  try {
+    await page.goto(`${KLAP_URL}/login`, { waitUntil: 'load', timeout: 30000 });
+    await page.waitForTimeout(2000);
+
+    await page.fill('input[type="email"]', email);
+    await page.fill('input[type="password"]', 'AutoPass123!');
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+    await page.waitForTimeout(5000);
+
+    // Check if login succeeded
+    const text = await page.evaluate(() => document.body.innerText);
+    if (text.includes('Sign in') || text.includes('Invalid') || text.includes('incorrect')) {
+      throw new Error('Login failed');
+    }
+
+    // Go to account page to find credit info
+    await page.goto(`${KLAP_URL}/account`, { waitUntil: 'load', timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    // Try to find credit/balance text on the page
+    const bodyText = await page.evaluate(() => document.body.innerText);
+
+    // Parse credit from various possible formats
+    let credit = null;
+    const creditMatch = bodyText.match(/(\d+\.?\d*)\s*credit/i) || bodyText.match(/balance[:\s]*\$?(\d+\.?\d*)/i);
+    if (creditMatch) {
+      credit = parseFloat(creditMatch[1]);
+    }
+
+    return { email, credit, ok: true };
+  } catch (err) {
+    return { email, credit: null, ok: false, error: err.message };
+  } finally {
+    await browser.close();
+  }
+}
+
+module.exports = { getKlapApiKey, getKlapCredit };

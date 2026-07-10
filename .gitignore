@@ -9,3 +9,12 @@ __pycache__/
 n8n/data/database.sqlite*
 n8n/data/storage/
 n8n/data/crash.journal
+
+# api-get runtime output
+api-get/output/
+api-get/downloads/
+api-get/music/
+api-get/public/uploads/
+
+# cortexkit config
+.cortexkit/

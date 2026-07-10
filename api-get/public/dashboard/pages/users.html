@@ -1,0 +1,26 @@
+          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h2>Managed Users</h2>
+              <p>Create ghost users and generate access tokens for Klap embed</p>
+            </div>
+            <button class="btn btn-primary" onclick="createManagedUser()">+ Create User</button>
+          </div>
+
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+              <div class="card-title">How it works</div>
+            </div>
+            <p style="color: var(--text-dim); font-size: 14px; line-height: 1.6;">
+              <strong>1.</strong> Click <strong>"Create User"</strong> to create a managed sub-user under your Klap account.<br>
+              <strong>2.</strong> Generate an <strong>access token</strong> for that user to authenticate the Klap embed player.<br>
+              <strong>3.</strong> Use the token to <strong>embed the Klap editor</strong> in your dashboard or share it with clients.<br><br>
+              <span style="color: var(--text-muted);">All content created by managed users is billable to your Klap account.</span>
+            </p>
+          </div>
+
+          <div id="users-list">
+            <div class="empty-users">
+              <div class="empty-icon">&#128101;</div>
+              <p>No managed users yet. Create one to get started.</p>
+            </div>
+          </div>
