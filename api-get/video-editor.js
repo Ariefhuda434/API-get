@@ -491,6 +491,26 @@ async function addBackgroundMusic(inputPath, musicPath, outputPath, options = {}
   return outputPath;
 }
 
+// Trim video to start/end times using ffmpeg
+async function trimVideo(inputPath, outputPath, startTime, endTime) {
+  const args = ['-y', '-i', inputPath];
+
+  if (startTime > 0) {
+    args.push('-ss', String(startTime));
+  }
+
+  if (endTime > 0 && endTime > startTime) {
+    const duration = endTime - startTime;
+    args.push('-t', String(duration));
+  }
+
+  args.push('-c', 'copy', outputPath);
+
+  console.log(`[video-editor] trim: ffmpeg ${args.join(' ')}`);
+  await execFileP('ffmpeg', args);
+  console.log(`[video-editor] Trimmed to: ${outputPath}`);
+}
+
 async function fullEdit(options = {}) {
   const {
     videoUrl = '',
@@ -512,6 +532,8 @@ async function fullEdit(options = {}) {
     titleSize = null,
     subtitleSize = null,
     position = null,
+    trimStart,
+    trimEnd,
   } = options;
   const introOptions = { template, style, background, titleColor, subtitleColor, titleSize, subtitleSize, position };
 
@@ -533,6 +555,7 @@ async function fullEdit(options = {}) {
   }
 
   const baseName = outputFileName || `edited_${Date.now()}`;
+  const trimPath = path.join(OUTPUT_DIR, `${baseName}_trim.mp4`);
   const step1Path = path.join(OUTPUT_DIR, `${baseName}_step1.mp4`);
   const step2Path = path.join(OUTPUT_DIR, `${baseName}_step2.mp4`);
   const step3Path = path.join(OUTPUT_DIR, `${baseName}_step3.mp4`);
@@ -542,6 +565,13 @@ async function fullEdit(options = {}) {
   let workingPath = currentPath;
 
   try {
+    // Trim if start/end specified
+    if (trimStart > 0 || (trimEnd > 0 && trimEnd < getVideoInfo(workingPath).duration)) {
+      console.log(`[video-editor] Trimming: ${trimStart || 0}s to ${trimEnd || 'end'}s`);
+      await trimVideo(workingPath, trimPath, trimStart || 0, trimEnd);
+      workingPath = trimPath;
+    }
+
     const hasTextIntro = title && title.trim();
     const hasCustomIntro = introVideo && fs.existsSync(introVideo);
 
@@ -566,7 +596,7 @@ async function fullEdit(options = {}) {
     if (fadeIn > 0 || fadeOut > 0) {
       console.log('[video-editor] Adding fade in/out...');
       await addFadeInOut(workingPath, step3Path, { fadeIn, fadeOut });
-      for (const p of [step1Path, step2Path]) {
+      for (const p of [trimPath, step1Path, step2Path]) {
         if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
       }
       workingPath = step3Path;
@@ -579,7 +609,7 @@ async function fullEdit(options = {}) {
         fadeIn: 1,
         fadeOut: 2,
       });
-      for (const p of [step1Path, step2Path, step3Path]) {
+      for (const p of [trimPath, step1Path, step2Path, step3Path]) {
         if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
       }
       workingPath = stepbgmPath;
@@ -594,7 +624,7 @@ async function fullEdit(options = {}) {
       workingPath = finalPath;
     }
   } catch (err) {
-    for (const p of [step1Path, step2Path, step3Path, stepbgmPath, finalPath]) {
+    for (const p of [trimPath, step1Path, step2Path, step3Path, stepbgmPath, finalPath]) {
       if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
     }
     throw err;

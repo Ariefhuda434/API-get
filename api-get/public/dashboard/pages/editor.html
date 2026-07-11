@@ -1,21 +1,158 @@
-          <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <h2>Klap Editor</h2>
-              <p>Edit your clips directly in the Klap embed player</p>
+          <div class="editor-layout">
+            <div class="editor-toolbar">
+              <div class="editor-toolbar-left">
+                <div class="editor-source-input">
+                  <input type="text" class="form-input" id="editor-video-url" placeholder="Paste video URL atau pilih dari hasil..." style="width:400px;font-size:13px;">
+                  <button class="btn btn-primary btn-sm" onclick="loadEditorVideo()">Load</button>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('editor-file-input').click()">File</button>
+                  <input type="file" id="editor-file-input" accept="video/*" style="display:none" onchange="loadEditorFile(event)">
+                </div>
+              </div>
+              <div class="editor-toolbar-right">
+                <button class="btn btn-secondary btn-sm" id="editor-export-btn" onclick="exportEditedVideo()">Export</button>
+              </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-              <select class="form-select" id="embed-user-select" style="min-width: 200px; padding: 8px 12px; font-size: 13px;">
-                <option value="">Select managed user...</option>
-              </select>
-              <button class="btn btn-secondary btn-sm" onclick="refreshPlayers()">&#8635; Refresh</button>
+
+            <div class="editor-main">
+              <div class="editor-preview">
+                <div class="editor-preview-container">
+                  <video id="editor-video" controls crossorigin="anonymous" style="width:100%;max-height:100%;border-radius:8px;"></video>
+                  <div class="editor-text-overlay" id="editor-text-overlay">
+                    <div class="editor-overlay-text" id="editor-overlay-text" contenteditable="true">Your Text Here</div>
+                  </div>
+                </div>
+                <div class="editor-preview-info">
+                  <span id="editor-time-current">0:00</span> / <span id="editor-time-duration">0:00</span>
+                </div>
+              </div>
+
+              <div class="editor-controls">
+                <div class="editor-controls-section">
+                  <h4 class="editor-controls-title">Text Overlay</h4>
+                  <div class="form-group">
+                    <label class="form-label">Text</label>
+                    <textarea class="form-textarea" id="editor-text-input" rows="2" oninput="updateOverlayText()" placeholder="Teks yang tampil di video...">Your Text Here</textarea>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Font</label>
+                    <select class="form-select" id="editor-font-select" onchange="updateOverlayStyle()">
+                      <option value="Arial">Arial</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Verdana">Verdana</option>
+                      <option value="Georgia">Georgia</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Courier New">Courier New</option>
+                      <option value="Impact">Impact</option>
+                      <option value="Comic Sans MS">Comic Sans MS</option>
+                      <option value="Trebuchet MS">Trebuchet MS</option>
+                    </select>
+                  </div>
+                  <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div class="form-group">
+                      <label class="form-label">Size</label>
+                      <input type="range" class="form-range" id="editor-font-size" min="16" max="96" value="48" oninput="updateOverlayStyle()">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Color</label>
+                      <input type="color" class="form-input" id="editor-font-color" value="#ffffff" oninput="updateOverlayStyle()" style="height:38px;padding:2px;">
+                    </div>
+                  </div>
+                  <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div class="form-group">
+                      <label class="form-label">Position</label>
+                      <select class="form-select" id="editor-text-position" onchange="updateOverlayStyle()">
+                        <option value="top">Top</option>
+                        <option value="center" selected>Center</option>
+                        <option value="bottom">Bottom</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Style</label>
+                      <select class="form-select" id="editor-text-style" onchange="updateOverlayStyle()">
+                        <option value="normal">Normal</option>
+                        <option value="bold">Bold</option>
+                        <option value="outline">Outline</option>
+                        <option value="shadow">Shadow</option>
+                        <option value="glow">Glow</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="editor-controls-section">
+                  <h4 class="editor-controls-title">Trim</h4>
+                  <div class="form-group">
+                    <label class="form-label">Start</label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                      <input type="range" class="form-range" id="editor-trim-start" min="0" max="100" value="0" oninput="updateTrimDisplay()" style="flex:1;">
+                      <span id="editor-trim-start-label" style="font-size:12px;min-width:40px;color:var(--text-dim);">0:00</span>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">End</label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                      <input type="range" class="form-range" id="editor-trim-end" min="0" max="100" value="100" oninput="updateTrimDisplay()" style="flex:1;">
+                      <span id="editor-trim-end-label" style="font-size:12px;min-width:40px;color:var(--text-dim);">0:00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="editor-controls-section">
+                  <h4 class="editor-controls-title">BGM</h4>
+                  <div class="form-group">
+                    <select class="form-select" id="editor-bgm-select">
+                      <option value="">No BGM</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Volume: <span id="editor-bgm-volume-label">15%</span></label>
+                    <input type="range" class="form-range" id="editor-bgm-volume" min="0" max="100" value="15">
+                  </div>
+                </div>
+
+                <div class="editor-controls-section">
+                  <h4 class="editor-controls-title">Intro Title</h4>
+                  <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <select class="form-select" id="editor-intro-duration">
+                      <option value="2">2s</option>
+                      <option value="3" selected>3s</option>
+                      <option value="4">4s</option>
+                      <option value="5">5s</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">Template</label>
+                    <select class="form-select" id="editor-template-select">
+                      <option value="">Default</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div id="embed-empty" class="empty-state">
-            <div class="empty-icon">&#128249;</div>
-            <p>No clips to embed. Create clips from the <strong>Create New</strong> page first, then come here to edit them in the Klap editor.</p>
-          </div>
+            <div class="editor-timeline">
+              <div class="editor-timeline-header">
+                <div class="editor-timeline-controls">
+                  <button class="btn btn-sm btn-icon" onclick="zoomTimeline(-1)" title="Zoom Out">−</button>
+                  <span class="editor-zoom-level" id="editor-zoom-level">1x</span>
+                  <button class="btn btn-sm btn-icon" onclick="zoomTimeline(1)" title="Zoom In">+</button>
+                </div>
+                <div class="editor-timeline-time" id="editor-timeline-ruler">0:00</div>
+              </div>
+              <div class="editor-timeline-track-area" id="editor-timeline-track">
+                <canvas id="editor-timeline-canvas"></canvas>
+                <div class="editor-playhead" id="editor-playhead"></div>
+                <div class="editor-trim-handle editor-trim-start" id="editor-trim-handle-start"></div>
+                <div class="editor-trim-handle editor-trim-end" id="editor-trim-handle-end"></div>
+                <div class="editor-timeline-placeholder" id="editor-timeline-empty">
+                  <p>Load a video to start editing</p>
+                </div>
+              </div>
+            </div>
 
-          <div id="embed-grid" class="grid-3" style="display: none;">
-            <!-- Embed cards filled by JS -->
+            <div id="editor-export-progress" class="editor-export-progress" style="display:none;">
+              <div class="te-spinner"><div class="spinner"></div><span>Processing video...</span></div>
+              <div class="editor-export-result" style="display:none;"></div>
+            </div>
           </div>

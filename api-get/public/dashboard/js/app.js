@@ -192,7 +192,7 @@ async function navigateTo(page) {
     else if (page === 'settings') loadSettings();
     else if (page === 'presets') renderPresetsDetailPage();
     else if (page === 'users') renderUsers();
-    else if (page === 'editor') refreshPlayers();
+    else if (page === 'editor') initEditor();
   } catch (e) {
     console.error('Error in page init:', e);
   }

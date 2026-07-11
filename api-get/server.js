@@ -490,6 +490,8 @@ app.post('/api/video/edit', requireAuth, async (req, res) => {
     titleSize = null,
     subtitleSize = null,
     position = null,
+    trimStart,
+    trimEnd,
   } = req.body;
 
   if (!videoUrl && !videoPath) {
@@ -517,6 +519,8 @@ app.post('/api/video/edit', requireAuth, async (req, res) => {
       titleSize,
       subtitleSize,
       position,
+      trimStart,
+      trimEnd,
     });
 
     res.json({
