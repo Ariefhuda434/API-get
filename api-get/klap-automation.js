@@ -202,4 +202,38 @@ async function getKlapCredit(email) {
   }
 }
 
-module.exports = { getKlapApiKey, getKlapCredit };
+async function getKlapCreditByApiKey(apiKey) {
+  try {
+    const res = await fetch('https://api.klap.app/v2/account', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { ok: true, credit: data.credit ?? data.credits ?? data.balance ?? null, data };
+    }
+  } catch {}
+
+  try {
+    const res = await fetch('https://api.klap.app/v2/users/me', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { ok: true, credit: data.credit ?? data.credits ?? data.balance ?? null, data };
+    }
+  } catch {}
+
+  try {
+    const res = await fetch('https://api.klap.app/v2/tasks?limit=1', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (res.ok) {
+      return { ok: true, credit: null, message: 'Key valid, tapi credit info tidak tersedia via API' };
+    }
+    return { ok: false, credit: null, message: 'API Key tidak valid' };
+  } catch (err) {
+    return { ok: false, credit: null, error: err.message };
+  }
+}
+
+module.exports = { getKlapApiKey, getKlapCredit, getKlapCreditByApiKey };

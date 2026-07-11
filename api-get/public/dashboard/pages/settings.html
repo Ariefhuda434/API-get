@@ -2,7 +2,7 @@
             <h2>API Configuration</h2>
             <p>Configure your Klap API key and notification settings</p>
           </div>
-          <div class="card" style="max-width: 600px;">
+          <div class="card" style="max-width: 600px; margin-bottom: 24px;">
             <div class="form-group">
               <label class="form-label">Klap API Key</label>
               <input type="password" class="form-input" id="input-settings-api-key" placeholder="Masukkan API key (tanpa 'Bearer')" />
@@ -18,4 +18,46 @@
               <input type="text" class="form-input" id="input-telegram-id" placeholder="6601941001" />
             </div>
             <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+          </div>
+
+          <!-- TikTok Accounts -->
+          <div class="section-header" style="margin-top: 32px;">
+            <h2>TikTok Accounts</h2>
+            <p>Kelola akun TikTok untuk posting otomatis. Pilih akun pas mau post nanti.</p>
+          </div>
+
+          <div class="card" style="max-width: 600px; margin-bottom: 24px;" id="tt-add-card">
+            <div class="card-header">
+              <div class="card-title" id="tt-form-title">Tambah Akun TikTok</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Label</label>
+              <input type="text" class="form-input" id="tt-label" placeholder="e.g. Akun Utama" />
+              <div class="form-hint">Nama biar gampang bedain akun</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Username / Email</label>
+              <input type="text" class="form-input" id="tt-username" placeholder="username atau email TikTok" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-input" id="tt-password" placeholder="Password TikTok" />
+            </div>
+            <input type="hidden" id="tt-edit-id" value="" />
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary" onclick="saveTikTokAccount()">Simpan Akun</button>
+              <button class="btn btn-secondary" id="tt-cancel-btn" style="display:none;" onclick="cancelEditTikTok()">Batal</button>
+            </div>
+          </div>
+
+          <div class="card" style="max-width: 600px;">
+            <div class="card-header">
+              <div class="card-title">Akun Tersimpan (<span id="tt-count">0</span>)</div>
+            </div>
+            <div id="tt-accounts-list">
+              <div class="empty-state">
+                <div class="empty-icon">&#128249;</div>
+                <p>Belum ada akun TikTok. Tambah satu sekarang!</p>
+              </div>
+            </div>
           </div>

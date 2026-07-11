@@ -86,9 +86,36 @@ function getKey(id) {
   return (readDB().keys || []).find(k => k.id === id) || null;
 }
 
+// TikTok Accounts
+function getTikTokAccounts() {
+  return readDB().tiktokAccounts || [];
+}
+
+function saveTikTokAccount(account) {
+  const db = readDB();
+  if (!db.tiktokAccounts) db.tiktokAccounts = [];
+  if (account.id && account.id !== 'new') {
+    const idx = db.tiktokAccounts.findIndex(a => a.id === account.id);
+    if (idx >= 0) db.tiktokAccounts[idx] = account;
+    else db.tiktokAccounts.push(account);
+  } else {
+    account.id = `tt_${Date.now()}`;
+    db.tiktokAccounts.push(account);
+  }
+  writeDB(db);
+  return account;
+}
+
+function deleteTikTokAccount(id) {
+  const db = readDB();
+  db.tiktokAccounts = (db.tiktokAccounts || []).filter(a => a.id !== id);
+  writeDB(db);
+}
+
 module.exports = {
   getAllJobs, getJob, createJob, updateJob, deleteJob,
   saveKey, deleteKey, getAllKeys, updateKey, getKey,
+  getTikTokAccounts, saveTikTokAccount, deleteTikTokAccount,
 };
 function updateKeyCreditByApiKey(apiKey, creditChange) {
   const db = readDB();

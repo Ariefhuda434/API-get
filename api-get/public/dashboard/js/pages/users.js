@@ -8,8 +8,13 @@ function saveManagedUsers() {
   localStorage.setItem('viralcut_users', JSON.stringify(managedUsers));
 }
 
+function getSettingsApiKey() {
+  const el = document.getElementById('input-settings-api-key');
+  return el ? el.value.trim() : (localStorage.getItem('viralcut_api_key') || '');
+}
+
 async function createManagedUser() {
-  const apiKey = document.getElementById('input-settings-api-key').value.trim();
+  const apiKey = getSettingsApiKey();
   if (!apiKey) { showToast('Set API Key dulu di Settings!'); return; }
 
   try {
@@ -40,7 +45,7 @@ async function createManagedUser() {
 }
 
 async function generateUserToken(userId) {
-  const apiKey = document.getElementById('input-settings-api-key').value.trim();
+  const apiKey = getSettingsApiKey();
   if (!apiKey) { showToast('Set API Key dulu di Settings!'); return; }
 
   try {

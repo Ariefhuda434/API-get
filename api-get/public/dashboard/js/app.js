@@ -6,7 +6,7 @@ const PRESETS = {
     icon: '&#127897;',
     desc: 'Insight, hot take, banter',
     min_duration: 30, max_duration: 90, target_duration: 60,
-    captions: true, reframe: false, emojis: false, remove_silences: true, intro_title: false,
+    captions: true, reframe: true, emojis: false, remove_silences: true, intro_title: false,
     stylePresetId: 'mNpsvuTzw499',
     context: 'Podcast conversation. Cari momen: kutipan insight mendalam, hot take kontroversial, momen emosional, cerita personal yang relatable, joke/banter lucu antar host. Hindari: intro/outro, iklan, small talk kosong.',
     tips: [
@@ -185,7 +185,7 @@ async function navigateTo(page) {
 
   try {
     // Page-specific init
-    if (page === 'create') renderPresetGrid();
+    if (page === 'create') { renderPresetGrid(); updateKeySelector(); }
     else if (page === 'results') { /* no auto-init */ }
     else if (page === 'history') { loadHistory(); startHistoryAutoRefresh(); }
     else if (page === 'keys') renderKeyManager();

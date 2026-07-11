@@ -292,30 +292,80 @@ app.get('/api/webhook/status/:taskId', requireAuth, async (req, res) => {
   }
 });
 
+// ── TikTok Account Management ─────────────────────────────────────────
+
+// GET /api/tiktok/accounts — List saved TikTok accounts
+app.get('/api/tiktok/accounts', requireAuth, (req, res) => {
+  const { getTikTokAccounts } = require('./db');
+  const accounts = getTikTokAccounts().map(a => ({
+    id: a.id,
+    label: a.label || a.username,
+    username: a.username,
+    hasPassword: !!a.password,
+    createdAt: a.createdAt,
+  }));
+  res.json({ accounts });
+});
+
+// POST /api/tiktok/accounts — Save a TikTok account
+app.post('/api/tiktok/accounts', requireAuth, (req, res) => {
+  const { id, label, username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'username dan password wajib' });
+  }
+  const { saveTikTokAccount } = require('./db');
+  const account = saveTikTokAccount({
+    id: id || 'new',
+    label: label || username,
+    username,
+    password,
+    createdAt: new Date().toISOString(),
+  });
+  res.json({ success: true, account: { ...account, password: undefined } });
+});
+
+// DELETE /api/tiktok/accounts/:id — Delete a TikTok account
+app.delete('/api/tiktok/accounts/:id', requireAuth, (req, res) => {
+  const { deleteTikTokAccount } = require('./db');
+  deleteTikTokAccount(req.params.id);
+  res.json({ success: true });
+});
+
 // POST /api/tiktok/post — post a generated short to TikTok
-// body: { projectId, folderId, apiKey, caption? }
+// body: { projectId, folderId, apiKey, caption?, tiktokAccountId? }
 app.post('/api/tiktok/post', requireAuth, async (req, res) => {
-  const { projectId, folderId, apiKey, caption } = req.body;
+  const { projectId, folderId, apiKey, caption, tiktokAccountId } = req.body;
 
   if (!projectId || !folderId || !apiKey) {
     return res.status(400).json({ success: false, error: 'Field wajib: projectId, folderId, apiKey' });
   }
 
-  const tiktokUsername = process.env.TIKTOK_USERNAME;
-  const tiktokPassword = process.env.TIKTOK_PASSWORD;
+  let tiktokUsername, tiktokPassword;
+
+  if (tiktokAccountId) {
+    const { getTikTokAccounts } = require('./db');
+    const accounts = getTikTokAccounts();
+    const account = accounts.find(a => a.id === tiktokAccountId);
+    if (!account) {
+      return res.status(400).json({ success: false, error: 'TikTok account not found' });
+    }
+    tiktokUsername = account.username;
+    tiktokPassword = account.password;
+  } else {
+    tiktokUsername = process.env.TIKTOK_USERNAME;
+    tiktokPassword = process.env.TIKTOK_PASSWORD;
+  }
 
   if (!tiktokUsername || !tiktokPassword) {
     return res.status(400).json({
       success: false,
-      error: 'TikTOK credentials belum diatur di .env (TIKTOK_USERNAME dan TIKTOK_PASSWORD)',
+      error: 'TikTok credentials belum diatur. Tambah akun di Settings atau set TIKTOK_USERNAME/TIKTOK_PASSWORD di .env',
     });
   }
 
   try {
-    // Step 1: Export video from Klap and get download URL
     const videoUrl = await getVideoUrl(apiKey, folderId, projectId);
 
-    // Step 2: TikTok post — append required hashtags
     const extraHashtags = '#fyp #izinpost #clipper';
     const fullCaption = caption ? `${caption}\n${extraHashtags}` : extraHashtags;
     const result = await postToTikTok(videoUrl, fullCaption, {

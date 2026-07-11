@@ -83,21 +83,41 @@ function ffmpeg(args) {
 
 function downloadVideo(url, destPath) {
   return new Promise((resolve, reject) => {
-    const proto = url.startsWith('https') ? https : http;
+    const parsedUrl = new URL(url);
+    const proto = parsedUrl.protocol === 'https:' ? https : http;
     const file = fs.createWriteStream(destPath);
-    proto.get(url, (res) => {
+    const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://klap.app/',
+      }
+    };
+    proto.get(options, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         file.close();
-        fs.unlinkSync(destPath);
+        if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
         return downloadVideo(res.headers.location, destPath).then(resolve).catch(reject);
       }
       if (res.statusCode !== 200) {
         file.close();
-        fs.unlinkSync(destPath);
-        return reject(new Error(`Download failed: HTTP ${res.statusCode}`));
+        if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
+        return reject(new Error(`Download failed: HTTP ${res.statusCode} from ${url}`));
       }
+      const total = parseInt(res.headers['content-length'], 10) || 0;
+      let downloaded = 0;
+      res.on('data', (chunk) => { downloaded += chunk.length; });
       res.pipe(file);
-      file.on('finish', () => { file.close(); resolve(destPath); });
+      file.on('finish', () => {
+        file.close();
+        if (total > 0 && downloaded < total) {
+          if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
+          return reject(new Error(`Download incomplete: ${downloaded}/${total} bytes`));
+        }
+        resolve(destPath);
+      });
     }).on('error', (err) => {
       file.close();
       if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
@@ -503,7 +523,9 @@ async function fullEdit(options = {}) {
   if (videoUrl && !videoPath) {
     const urlFileName = `download_${Date.now()}.mp4`;
     currentPath = path.join(DOWNLOAD_DIR, urlFileName);
+    console.log(`[video-editor] Downloading: ${videoUrl}`);
     await downloadVideo(videoUrl, currentPath);
+    console.log(`[video-editor] Downloaded to: ${currentPath}`);
   }
 
   if (!currentPath || !fs.existsSync(currentPath)) {
@@ -514,54 +536,72 @@ async function fullEdit(options = {}) {
   const step1Path = path.join(OUTPUT_DIR, `${baseName}_step1.mp4`);
   const step2Path = path.join(OUTPUT_DIR, `${baseName}_step2.mp4`);
   const step3Path = path.join(OUTPUT_DIR, `${baseName}_step3.mp4`);
-  const finalPath = path.join(OUTPUT_DIR, `${baseName}_final.mp4`);
+  const stepbgmPath = path.join(OUTPUT_DIR, `${baseName}_bgm.mp4`);
+  const finalPath = path.join(OUTPUT_DIR, `${baseName}.mp4`);
 
   let workingPath = currentPath;
 
-  const hasTextIntro = title && title.trim();
-  const hasCustomIntro = introVideo && fs.existsSync(introVideo);
+  try {
+    const hasTextIntro = title && title.trim();
+    const hasCustomIntro = introVideo && fs.existsSync(introVideo);
 
-  if (hasCustomIntro) {
-    await concatIntro(workingPath, introVideo, step1Path, { crossfade: 0.3 });
-    workingPath = step1Path;
-  }
+    if (hasCustomIntro) {
+      await concatIntro(workingPath, introVideo, step1Path, { crossfade: 0.3 });
+      workingPath = step1Path;
+    }
 
-  if (hasTextIntro && !hasCustomIntro) {
-    await addIntroTitle(workingPath, step2Path, {
-      title,
-      subtitle,
-      duration: introDuration,
-      fadeIn: 0.5,
-      fadeOut: 0.5,
-      ...introOptions,
-    });
-    workingPath = step2Path;
-  }
+    if (hasTextIntro && !hasCustomIntro) {
+      console.log('[video-editor] Adding intro title...');
+      await addIntroTitle(workingPath, step2Path, {
+        title,
+        subtitle,
+        duration: introDuration,
+        fadeIn: 0.5,
+        fadeOut: 0.5,
+        ...introOptions,
+      });
+      workingPath = step2Path;
+    }
 
-  if (fadeIn > 0 || fadeOut > 0) {
-    await addFadeInOut(workingPath, step3Path, { fadeIn, fadeOut });
-    for (const p of [step1Path, step2Path]) {
+    if (fadeIn > 0 || fadeOut > 0) {
+      console.log('[video-editor] Adding fade in/out...');
+      await addFadeInOut(workingPath, step3Path, { fadeIn, fadeOut });
+      for (const p of [step1Path, step2Path]) {
+        if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
+      }
+      workingPath = step3Path;
+    }
+
+    if (bgmPath && fs.existsSync(bgmPath)) {
+      console.log('[video-editor] Adding background music...');
+      await addBackgroundMusic(workingPath, bgmPath, stepbgmPath, {
+        volume: bgmVolume,
+        fadeIn: 1,
+        fadeOut: 2,
+      });
+      for (const p of [step1Path, step2Path, step3Path]) {
+        if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
+      }
+      workingPath = stepbgmPath;
+    }
+
+    if (workingPath !== finalPath) {
+      if (workingPath !== currentPath) {
+        fs.renameSync(workingPath, finalPath);
+      } else {
+        fs.copyFileSync(workingPath, finalPath);
+      }
+      workingPath = finalPath;
+    }
+  } catch (err) {
+    for (const p of [step1Path, step2Path, step3Path, stepbgmPath, finalPath]) {
       if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
     }
-    workingPath = step3Path;
+    throw err;
   }
 
-  if (bgmPath && fs.existsSync(bgmPath)) {
-    await addBackgroundMusic(workingPath, bgmPath, finalPath, {
-      volume: bgmVolume,
-      fadeIn: 1,
-      fadeOut: 2,
-    });
-    for (const p of [step1Path, step2Path, step3Path]) {
-      if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
-    }
-    workingPath = finalPath;
-  } else if (workingPath !== currentPath) {
-    fs.renameSync(workingPath, finalPath);
-    workingPath = finalPath;
-  } else {
-    fs.copyFileSync(workingPath, finalPath);
-    workingPath = finalPath;
+  if (!fs.existsSync(workingPath)) {
+    throw new Error('Output file not found after editing');
   }
 
   return {
