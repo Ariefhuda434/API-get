@@ -737,6 +737,7 @@ function loadEditorVideo() {
   const url = document.getElementById('editor-video-url').value.trim();
   if (!url) { showToast('Masukkan URL video'); return; }
   const video = document.getElementById('editor-video');
+  showToast('Loading video...');
   video.src = url;
   video.load();
 }

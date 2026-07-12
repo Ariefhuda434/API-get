@@ -112,10 +112,29 @@ function deleteTikTokAccount(id) {
   writeDB(db);
 }
 
+function getKeyByApiKey(apiKey) {
+  return (readDB().keys || []).find(k => k.key === apiKey) || null;
+}
+
+function markKeyAsUsed(apiKey) {
+  const db = readDB();
+  const idx = (db.keys || []).findIndex(k => k.key === apiKey);
+  if (idx === -1) return null;
+  const k = db.keys[idx];
+  if (k.type === 'onetime') {
+    k.used = true;
+    k.usedAt = new Date().toISOString();
+  }
+  k.updatedAt = new Date().toISOString();
+  writeDB(db);
+  return k;
+}
+
 module.exports = {
   getAllJobs, getJob, createJob, updateJob, deleteJob,
   saveKey, deleteKey, getAllKeys, updateKey, getKey,
   getTikTokAccounts, saveTikTokAccount, deleteTikTokAccount,
+  getKeyByApiKey, markKeyAsUsed,
 };
 function updateKeyCreditByApiKey(apiKey, creditChange) {
   const db = readDB();

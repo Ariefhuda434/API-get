@@ -3,9 +3,14 @@
               <h2>Key Manager</h2>
               <p>Generate, simpan, dan kelola banyak Klap API key (termasuk $5 credit tiap akun baru)</p>
             </div>
-            <button class="btn btn-primary" id="btn-gen-key" onclick="generateKey()">
-              &#9889; Generate New Key
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-primary" id="btn-gen-key" onclick="generateKey()">
+                &#9889; Generate New Key
+              </button>
+              <button class="btn btn-outline" onclick="showCreateOneTimeKey()">
+                &#128197; One-Time Key
+              </button>
+            </div>
           </div>
 
           <div class="card" style="margin-bottom: 24px; display: none;" id="key-gen-card">

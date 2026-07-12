@@ -6,7 +6,7 @@ const { processFormSubmission, pollTask, getVideoUrl } = require('./webhook');
 const { requireAuth } = require('./auth');
 const { postToTikTok } = require('./tiktok-poster');
 const { fullEdit, getVideoInfo, downloadVideo } = require('./video-editor');
-const { getAllJobs, getJob, createJob, updateJob, getAllKeys, saveKey, updateKey, getKey } = require('./db');
+const { getAllJobs, getJob, createJob, updateJob, getAllKeys, saveKey, updateKey, getKey, getKeyByApiKey, markKeyAsUsed } = require('./db');
 const { startJob, subscribeJob } = require('./job-processor');
 
 const app = express();
@@ -206,6 +206,9 @@ app.get('/api/webhook/process-form-stream', requireAuth, async (req, res) => {
 app.get('/api/keys', requireAuth, (req, res) => {
   const keys = getAllKeys().map(k => ({
     id: k.id, email: k.email, key: k.key, credit: k.credit || 0,
+    type: k.type || 'credit',
+    used: k.type === 'onetime' ? (k.used || false) : undefined,
+    usedAt: k.type === 'onetime' ? (k.usedAt || null) : undefined,
     createdAt: k.createdAt,
   }));
   res.json({ keys });
@@ -213,15 +216,22 @@ app.get('/api/keys', requireAuth, (req, res) => {
 
 // POST /api/keys — Save a new API key
 app.post('/api/keys', requireAuth, (req, res) => {
-  const { email, key, credit } = req.body;
+  const { email, key, credit, type } = req.body;
   if (!key) return res.status(400).json({ error: 'key wajib diisi' });
   const entry = {
     id: `key_${Date.now()}`,
     email: email || '',
     key,
-    credit: parseInt(credit) || 0,
+    type: type === 'onetime' ? 'onetime' : 'credit',
     createdAt: new Date().toISOString(),
   };
+  if (entry.type === 'onetime') {
+    entry.used = false;
+  } else {
+    entry.credit = parseInt(credit) || 0;
+    entry.creditTotal = 5;
+    entry.creditUsed = 0;
+  }
   saveKey(entry);
   res.json({ success: true, key: entry });
 });
@@ -385,6 +395,12 @@ app.post('/api/tiktok/post', requireAuth, async (req, res) => {
 app.post('/api/jobs', requireAuth, async (req, res) => {
   const { url, apiKey, count, briefing, presetName, preset, captionStyle, stylePresetId, behalfToken, autoEdit, autoEditConfig } = req.body;
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
+
+  // Check one-time key validity
+  const keyData = getKeyByApiKey(apiKey);
+  if (keyData && keyData.type === 'onetime' && keyData.used) {
+    return res.status(403).json({ error: 'API key sudah digunakan. Buat key baru untuk pemakaian berikutnya.' });
+  }
 
   const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   const job = {

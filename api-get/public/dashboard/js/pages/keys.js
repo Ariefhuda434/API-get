@@ -133,6 +133,28 @@ async function generateKey() {
   }
 }
 
+function showCreateOneTimeKey() {
+  const keyVal = prompt('Masukkan Klap API key untuk one-time use:');
+  if (!keyVal || !keyVal.trim()) return;
+  const label = prompt('Label / email (opsional):') || 'One-Time Key';
+  savedKeys.push({
+    id: 'key_' + Date.now(),
+    email: label,
+    key: keyVal.trim(),
+    type: 'onetime',
+    used: false,
+    createdAt: new Date().toISOString(),
+  });
+  saveKeys();
+  fetch('/api/keys', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: label, key: keyVal.trim(), type: 'onetime' }),
+  }).catch(() => {});
+  renderKeyManager();
+  showToast('✅ One-time key saved');
+}
+
 function deleteKey(idx) {
   if (!confirm('Hapus key ini?')) return;
   savedKeys.splice(idx, 1);
@@ -159,30 +181,41 @@ function renderKeyManager() {
   let totalRemaining = 0;
   let totalKnown = 0;
   list.innerHTML = savedKeys.map((k, i) => {
-    const remaining = (k.realCredit !== undefined ? k.realCredit : (k.creditTotal || 5) - (k.creditUsed || 0));
-    const maxCredit = k.creditTotal || 5;
-    const creditDisplay = k.realCredit !== undefined
-      ? `$(real) <span style="color: ${remaining > 0 ? 'var(--accent)' : 'var(--danger)'};">${remaining > 0 ? '$' + remaining.toFixed(2) : 'OUT'}</span>`
-      : `<span style="color: var(--text-muted);">$? — <button class="btn btn-sm" onclick="event.stopPropagation();checkCredit(${i})" style="background:none;border:1px solid var(--border);color:var(--text-dim);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:11px;">check</button></span>`;
-    const emailShort = k.email ? k.email.slice(0, 30) + (k.email.length > 30 ? '...' : '') : '-';
+    const isOneTime = k.type === 'onetime' || k.oneTime;
+    const isUsed = isOneTime && (k.used === true);
 
-    if (k.realCredit !== undefined) {
-      totalRemaining += Math.max(0, remaining);
-      totalKnown++;
+    let typeBadge = '';
+    let metaLine = '';
+
+    if (isOneTime) {
+      typeBadge = isUsed
+        ? '<span style="font-size:11px;background:rgba(255,68,102,0.2);color:var(--danger);padding:2px 8px;border-radius:4px;margin-left:8px;">USED</span>'
+        : '<span style="font-size:11px;background:rgba(0,229,160,0.2);color:var(--success);padding:2px 8px;border-radius:4px;margin-left:8px;">ONE-TIME</span>';
+      metaLine = `Key: ${k.key.slice(0, 20)}...${k.key.slice(-6)} | One-Time: ${isUsed ? 'Used' : 'Available'}`;
+    } else {
+      const remaining = (k.realCredit !== undefined ? k.realCredit : (k.creditTotal || 5) - (k.creditUsed || 0));
+      const creditDisplay = k.realCredit !== undefined
+        ? `<span style="color: ${remaining > 0 ? 'var(--accent)' : 'var(--danger)'};">${remaining > 0 ? '$' + remaining.toFixed(2) : 'OUT'}</span>`
+        : `<span style="color: var(--text-muted);">$? <button class="btn btn-sm" onclick="event.stopPropagation();checkCredit(${i})" style="background:none;border:1px solid var(--border);color:var(--text-dim);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:11px;">check</button></span>`;
+      metaLine = `Key: ${k.key.slice(0, 20)}...${k.key.slice(-6)} | Credit: ${creditDisplay}`;
+
+      if (k.realCredit !== undefined) {
+        totalRemaining += Math.max(0, remaining);
+        totalKnown++;
+      }
     }
 
+    const emailShort = k.email ? k.email.slice(0, 30) + (k.email.length > 30 ? '...' : '') : '-';
+
     return `
-      <div class="user-card" style="margin-bottom: 8px;">
-        <div class="user-avatar" style="background: linear-gradient(135deg, #6c3bfc, #00e5a0);">K</div>
+      <div class="user-card" style="margin-bottom: 8px;${isUsed ? 'opacity:0.5;' : ''}">
+        <div class="user-avatar" style="background: ${isOneTime ? 'linear-gradient(135deg, #ff6b35, #f7c948)' : 'linear-gradient(135deg, #6c3bfc, #00e5a0)'};">${isOneTime ? '1' : 'K'}</div>
         <div class="user-info">
-          <div class="user-name">${emailShort}</div>
-          <div class="user-meta">
-            Key: ${k.key.slice(0, 20)}...${k.key.slice(-6)} |
-            Credit: ${creditDisplay}
-          </div>
+          <div class="user-name">${emailShort}${typeBadge}</div>
+          <div class="user-meta">${metaLine}</div>
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary btn-sm" onclick="checkCredit(${i})" title="Check real credit from Klap">&#128200;</button>
+          ${!isOneTime ? `<button class="btn btn-secondary btn-sm" onclick="checkCredit(${i})" title="Check real credit from Klap">&#128200;</button>` : ''}
           <button class="btn btn-primary btn-sm" onclick="copyKeyValue('${k.key}')">Copy</button>
           <button class="btn btn-danger btn-sm" onclick="deleteKey(${i})">Delete</button>
         </div>
@@ -264,6 +297,7 @@ async function checkAllCredit(silent = true) {
     let failCount = 0;
     let dbCount = 0;
     for (const k of savedKeys) {
+      if (k.type === 'onetime' || k.oneTime) continue;
       if (!k.email) continue;
       try {
         const realRes = await fetch('/api/keys/check-credit-real?email=' + encodeURIComponent(k.email));

@@ -1,7 +1,7 @@
 const EventEmitter = require('events');
 const path = require('path');
 const fs = require('fs');
-const { createJob, updateJob, getJob, updateKeyCreditByApiKey } = require('./db');
+const { createJob, updateJob, getJob, updateKeyCreditByApiKey, getKeyByApiKey, markKeyAsUsed } = require('./db');
 const { trimAndUpload } = require('./video-trimmer');
 const { fullEdit } = require('./video-editor');
 
@@ -94,6 +94,14 @@ async function processJobWithData(jobId, job) {
 
     const task = await klap('POST', '/tasks/video-to-shorts', apiKey, body, behalfToken);
     if (!task.id) throw new Error('Failed to create task - no ID returned');
+
+    // Mark one-time key as used
+    try {
+      const kd = getKeyByApiKey(apiKey);
+      if (kd && kd.type === 'onetime' && !kd.used) {
+        markKeyAsUsed(apiKey);
+      }
+    } catch(e) {}
 
     updateJob(jobId, { taskId: task.id, status: 'processing', message: 'Memproses video...' });
 
