@@ -1,7 +1,10 @@
 function saveSettings() {
-  localStorage.setItem('viralcut_api_key', document.getElementById('input-settings-api-key').value);
-  localStorage.setItem('viralcut_webhook', document.getElementById('input-webhook').value);
-  localStorage.setItem('viralcut_telegram', document.getElementById('input-telegram-id').value);
+  const keyEl = document.getElementById('input-settings-api-key');
+  const whEl = document.getElementById('input-webhook');
+  const tgEl = document.getElementById('input-telegram-id');
+  if (keyEl) localStorage.setItem('viralcut_api_key', keyEl.value);
+  if (whEl) localStorage.setItem('viralcut_webhook', whEl.value);
+  if (tgEl) localStorage.setItem('viralcut_telegram', tgEl.value);
   showToast('Settings saved!');
 }
 
@@ -18,12 +21,14 @@ function loadSettings() {
 // ── TikTok Account Management ────────────────────────────────────────
 
 async function loadTikTokAccounts() {
-  document.getElementById('tt-count').textContent = '...';
+  const ttCount = document.getElementById('tt-count');
+  if (!ttCount) return;
+  ttCount.textContent = '...';
   try {
     const res = await fetch('/api/tiktok/accounts');
     const data = await res.json();
     const accounts = data.accounts || [];
-    document.getElementById('tt-count').textContent = accounts.length;
+    ttCount.textContent = accounts.length;
     const list = document.getElementById('tt-accounts-list');
     if (!accounts.length) {
       list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128249;</div><p>Belum ada akun TikTok. Tambah satu sekarang!</p></div>';
