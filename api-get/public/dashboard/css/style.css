@@ -855,6 +855,13 @@ body {
 /* ── Extra Small Button ───────────────────────────────────────────── */
 .btn-xs { font-size: 11px; padding: 3px 10px; height: 26px; }
 
+/* ── Server Image Grid ────────────────────────────────────────────── */
+.editor-server-image-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 200px; overflow-y: auto; }
+.editor-server-image { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; font-size: 10px; color: var(--text-dim); text-align: center; overflow: hidden; }
+.editor-server-image:hover { border-color: var(--primary); background: rgba(0, 136, 255, 0.1); }
+.editor-server-image img { width: 100%; height: 50px; object-fit: cover; border-radius: 2px; }
+.editor-server-image span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
 /* ── Shape Palette ────────────────────────────────────────────────── */
 .editor-shape-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
 .editor-shape-btn { display: flex; align-items: center; justify-content: center; height: 44px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 22px; cursor: pointer; transition: all 0.15s; }

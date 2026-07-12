@@ -595,10 +595,20 @@ async function addImageOverlays(inputPath, outputPath, imageLayers = []) {
     if (!l.src) continue;
     const imgPath = path.join(imgDir, `layer_${i}_${Date.now()}.png`);
 
-    // Decode base64 data URL or copy URL
+    // Decode base64 data URL or download from URL
     if (l.src.startsWith('data:')) {
       const b64 = l.src.split(',')[1];
       fs.writeFileSync(imgPath, Buffer.from(b64, 'base64'));
+    } else if (l.src.startsWith('http://') || l.src.startsWith('https://')) {
+      await downloadVideo(l.src, imgPath);
+    } else if (l.src.startsWith('/')) {
+      // Local server path - fetch from this server
+      const localPath = path.join(__dirname, 'public', l.src.replace(/^\//, ''));
+      if (fs.existsSync(localPath)) {
+        fs.copyFileSync(localPath, imgPath);
+      } else {
+        continue;
+      }
     } else {
       continue;
     }

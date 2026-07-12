@@ -628,6 +628,17 @@ app.get('/api/video/download-img/:file', requireAuth, (req, res) => {
   res.sendFile(filePath);
 });
 
+// GET /api/images — list available server images (from ss/ folder)
+app.get('/api/images', requireAuth, (req, res) => {
+  const fs = require('fs');
+  const imgDir = path.join(__dirname, 'public', 'ss');
+  if (!fs.existsSync(imgDir)) {
+    return res.json({ images: [] });
+  }
+  const files = fs.readdirSync(imgDir).filter(f => /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f));
+  res.json({ images: files });
+});
+
 // GET /api/video/music — list available BGM tracks
 app.get('/api/video/music', requireAuth, (req, res) => {
   const fs = require('fs');

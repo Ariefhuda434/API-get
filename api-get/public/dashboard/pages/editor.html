@@ -151,11 +151,20 @@
                   <div class="editor-controls-section">
                     <div class="editor-section-header">
                       <h4 class="editor-controls-title">Image Overlays</h4>
-                      <button class="btn btn-xs btn-primary" onclick="document.getElementById('editor-image-input').click()">+ Add Image</button>
+                      <button class="btn btn-xs btn-primary" onclick="document.getElementById('editor-image-input').click()">+ Upload</button>
                       <input type="file" id="editor-image-input" accept="image/*" style="display:none" onchange="addImageLayer(event)">
                     </div>
                     <div class="editor-layer-list" id="editor-image-layer-list">
-                      <div class="editor-layer-empty">No images. Click "+ Add Image"</div>
+                      <div class="editor-layer-empty">No images. Click "+ Upload"</div>
+                    </div>
+                  </div>
+                  <div class="editor-controls-section">
+                    <div class="editor-section-header">
+                      <h4 class="editor-controls-title">Server Images (<span id="editor-server-image-count">0</span>)</h4>
+                      <button class="btn btn-xs btn-outline" onclick="loadServerImages()">Refresh</button>
+                    </div>
+                    <div id="editor-server-image-list">
+                      <div class="editor-layer-empty">Click Refresh to load server images</div>
                     </div>
                   </div>
                   <div class="editor-controls-section" id="editor-image-controls" style="display:none;">

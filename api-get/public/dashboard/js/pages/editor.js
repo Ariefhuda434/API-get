@@ -280,23 +280,48 @@ function addImageLayer(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    const layer = {
-      id: layerIdCounter++,
-      type: 'image',
-      src: e.target.result,
-      x: 50,
-      y: 50,
-      size: 100,
-      opacity: 100,
-    };
-    imageLayers.push(layer);
-    selectLayerById(layer.id);
-    showImageControls(layer);
-    refreshLayerList();
-    renderLayers();
+    addImageLayerBySrc(e.target.result);
   };
   reader.readAsDataURL(file);
   event.target.value = '';
+}
+
+function addImageLayerBySrc(src) {
+  const layer = {
+    id: layerIdCounter++,
+    type: 'image',
+    src: src,
+    x: 50,
+    y: 50,
+    size: 100,
+    opacity: 100,
+  };
+  imageLayers.push(layer);
+  selectLayerById(layer.id);
+  showImageControls(layer);
+  refreshLayerList();
+  renderLayers();
+}
+
+function loadServerImages() {
+  fetch('/api/images')
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById('editor-server-image-list');
+      if (!container) return;
+      const images = data.images || [];
+      if (!images.length) {
+        container.innerHTML = '<div class="editor-layer-empty">No images in server folder</div>';
+        return;
+      }
+      container.innerHTML = images.map(name => `
+        <div class="editor-server-image" onclick="addImageLayerBySrc('/ss/${name}')" title="${name}">
+          <img src="/ss/${name}" loading="lazy" onerror="this.parentElement.style.display='none'">
+          <span>${name}</span>
+        </div>
+      `).join('');
+    })
+    .catch(() => {});
 }
 
 function showImageControls(layer) {
