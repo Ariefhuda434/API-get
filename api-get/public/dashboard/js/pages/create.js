@@ -73,6 +73,30 @@ function renderPresetDetail(name, preset) {
   body.innerHTML = html;
 }
 
+function initCreatePage() {
+  // Load BGM for auto-edit selector
+  fetch('/api/video/music')
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('input-ae-bgm');
+      if (sel) {
+        sel.innerHTML = '<option value="">No BGM</option>' +
+          (data.tracks || []).map(t => `<option value="${t}">${t.replace(/\.\w+$/, '')}</option>`).join('');
+      }
+    })
+    .catch(() => {});
+
+  // Auto-edit toggle show/hide
+  const toggle = document.getElementById('toggle-auto-edit');
+  if (toggle) {
+    toggle.onclick = () => {
+      toggle.classList.toggle('active');
+      const config = document.getElementById('auto-edit-config');
+      if (config) config.style.display = toggle.classList.contains('active') ? 'block' : 'none';
+    };
+  }
+}
+
 async function submitJob() {
   let url = document.getElementById('input-url').value.trim();
   if (!url) { showToast('Paste YouTube URL dulu!'); return; }
@@ -91,6 +115,13 @@ async function submitJob() {
   const stylePresetId = document.getElementById('input-style-preset').value.trim();
   const count = parseInt(document.getElementById('input-count').value);
   const captionStyle = document.getElementById('input-caption-style').value;
+
+  const aeToggle = document.getElementById('toggle-auto-edit');
+  const autoEdit = aeToggle ? aeToggle.classList.contains('active') : false;
+  const autoEditConfig = autoEdit ? {
+    template: document.getElementById('input-ae-template')?.value || '',
+    bgmPath: document.getElementById('input-ae-bgm')?.value || '',
+  } : {};
 
   const payload = {
     url,
@@ -111,6 +142,8 @@ async function submitJob() {
     },
     captionStyle,
     stylePresetId: stylePresetId || '',
+    autoEdit,
+    autoEditConfig,
   };
 
   try {

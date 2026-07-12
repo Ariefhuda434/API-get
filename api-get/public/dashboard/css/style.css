@@ -170,6 +170,13 @@ body {
 }
 .btn-secondary:hover { border-color: var(--text-muted); }
 
+.btn-accent {
+  background: var(--accent);
+  color: #000;
+  border: 1px solid var(--accent);
+}
+.btn-accent:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
 .btn-outline {
   background: transparent;
   color: var(--accent);
@@ -812,3 +819,43 @@ body {
 .form-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg-card); cursor: pointer; }
 .form-textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; color: var(--text); font-size: 13px; resize: vertical; }
 .form-select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; color: var(--text); font-size: 13px; }
+
+/* ── Editor Tabs ──────────────────────────────────────────────────── */
+.editor-controls-tabs { display: flex; gap: 2px; margin-bottom: 8px; background: var(--bg); border-radius: 6px; padding: 2px; }
+.editor-tab { flex: 1; padding: 6px 4px; border: none; background: transparent; color: var(--text-dim); font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 4px; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.3px; }
+.editor-tab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.editor-tab.active { color: #fff; background: var(--primary); }
+.editor-tab-content { display: none; }
+.editor-tab-content.active { display: block; }
+
+/* ── Layer System ─────────────────────────────────────────────────── */
+.editor-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.editor-layer-list { max-height: 120px; overflow-y: auto; margin-bottom: 8px; }
+.editor-layer-empty { font-size: 12px; color: var(--text-muted); padding: 8px; text-align: center; }
+.editor-layer-item { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: background 0.15s; }
+.editor-layer-item:hover { background: rgba(255,255,255,0.05); }
+.editor-layer-item.selected { background: rgba(0, 212, 255, 0.1); border: 1px solid var(--primary); }
+.editor-layer-icon { font-size: 14px; width: 20px; text-align: center; }
+.editor-layer-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-layer-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 0 4px; opacity: 0.6; }
+.editor-layer-del:hover { opacity: 1; }
+
+/* ── Layers Container on Preview ──────────────────────────────────── */
+.editor-layers-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 8px; }
+.editor-layers-container .editor-layer-el { pointer-events: auto; }
+.editor-layers-container .editor-layer-el.selected { outline: 2px dashed var(--primary); outline-offset: 2px; }
+
+/* ── Timeline Enhancements ────────────────────────────────────────── */
+.editor-timeline-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.editor-timeline-controls .btn-outline { font-size: 11px; padding: 2px 8px; }
+
+/* ── Form Row ─────────────────────────────────────────────────────── */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ── Extra Small Button ───────────────────────────────────────────── */
+.btn-xs { font-size: 11px; padding: 3px 10px; height: 26px; }
+
+/* ── Shape Palette ────────────────────────────────────────────────── */
+.editor-shape-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.editor-shape-btn { display: flex; align-items: center; justify-content: center; height: 44px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 22px; cursor: pointer; transition: all 0.15s; }
+.editor-shape-btn:hover { border-color: var(--primary); background: rgba(0, 136, 255, 0.1); }

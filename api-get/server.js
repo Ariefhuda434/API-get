@@ -383,7 +383,7 @@ app.post('/api/tiktok/post', requireAuth, async (req, res) => {
 
 // POST /api/jobs — Submit a new clip generation job
 app.post('/api/jobs', requireAuth, async (req, res) => {
-  const { url, apiKey, count, briefing, presetName, preset, captionStyle, stylePresetId, behalfToken } = req.body;
+  const { url, apiKey, count, briefing, presetName, preset, captionStyle, stylePresetId, behalfToken, autoEdit, autoEditConfig } = req.body;
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
 
   const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -398,6 +398,8 @@ app.post('/api/jobs', requireAuth, async (req, res) => {
     captionStyle: captionStyle || 'bold',
     stylePresetId: stylePresetId || '',
     behalfToken: behalfToken || '',
+    autoEdit: autoEdit === true,
+    autoEditConfig: autoEditConfig || {},
     status: 'pending',
     message: 'Queued...',
     createdAt: new Date().toISOString(),
@@ -470,14 +472,21 @@ app.get('/api/jobs/:id/stream', requireAuth, async (req, res) => {
 
 // ── Video Editor API ──────────────────────────────────────────────────
 
-// POST /api/video/edit — download + edit video (intro title, fade, BGM)
+// POST /api/video/edit — full video editing pipeline
 app.post('/api/video/edit', requireAuth, async (req, res) => {
   const {
     videoUrl,
     videoPath,
+    segments,
+    textLayers = [],
+    imageLayers = [],
+    shapeLayers = [],
+    effects = {},
+    transition = { type: 'none', duration: 0.3 },
     title = '',
     subtitle = '',
     introDuration = 3,
+    introVideo,
     bgm,
     bgmVolume = 0.15,
     fadeIn = 0.3,
@@ -492,6 +501,8 @@ app.post('/api/video/edit', requireAuth, async (req, res) => {
     position = null,
     trimStart,
     trimEnd,
+    aspectRatio = '',
+    freezeFrame = null,
   } = req.body;
 
   if (!videoUrl && !videoPath) {
@@ -501,12 +512,26 @@ app.post('/api/video/edit', requireAuth, async (req, res) => {
   try {
     const path = require('path');
     const fs = require('fs');
+
+    // Resolve image layer data URLs (they're base64 in the request)
+    const resolvedImageLayers = imageLayers.map(l => ({
+      ...l,
+      src: l.src || '',
+    }));
+
     const result = await fullEdit({
       videoUrl,
       videoPath,
+      segments,
+      textLayers,
+      imageLayers: resolvedImageLayers,
+      shapeLayers,
+      effects,
+      transition,
       title,
       subtitle,
       introDuration,
+      introVideo: introVideo ? path.join(__dirname, 'intros', introVideo) : '',
       bgmPath: bgm ? path.join(__dirname, 'music', bgm) : '',
       bgmVolume,
       fadeIn,
@@ -521,6 +546,8 @@ app.post('/api/video/edit', requireAuth, async (req, res) => {
       position,
       trimStart,
       trimEnd,
+      aspectRatio,
+      freezeFrame,
     });
 
     res.json({
@@ -545,6 +572,46 @@ app.get('/api/video/download/:file', requireAuth, (req, res) => {
   res.download(filePath);
 });
 
+// POST /api/video/upload-image — upload image overlay
+app.post('/api/video/upload-image', requireAuth, async (req, res) => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    const imgDir = path.join(__dirname, 'downloads', 'uploads');
+    if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+    const busboy = require('busboy');
+    let filePath = '';
+    const bb = busboy({ headers: req.headers });
+    bb.on('file', (fieldname, file, info) => {
+      const ext = path.extname(info.filename) || '.png';
+      const name = `img_${Date.now()}${ext}`;
+      filePath = path.join(imgDir, name);
+      const ws = fs.createWriteStream(filePath);
+      file.pipe(ws);
+    });
+    bb.on('finish', () => {
+      if (filePath && fs.existsSync(filePath)) {
+        res.json({ success: true, path: `/api/video/download-img/${path.basename(filePath)}` });
+      } else {
+        res.status(400).json({ error: 'No file uploaded' });
+      }
+    });
+    bb.on('error', (err) => res.status(500).json({ error: err.message }));
+    req.pipe(bb);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/video/download-img/:file — serve uploaded image
+app.get('/api/video/download-img/:file', requireAuth, (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const filePath = path.join(__dirname, 'downloads', 'uploads', req.params.file);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  res.sendFile(filePath);
+});
+
 // GET /api/video/music — list available BGM tracks
 app.get('/api/video/music', requireAuth, (req, res) => {
   const fs = require('fs');
@@ -560,6 +627,154 @@ app.get('/api/video/music', requireAuth, (req, res) => {
 app.get('/api/video/templates', requireAuth, (req, res) => {
   const { TITLE_TEMPLATES } = require('./video-editor');
   res.json({ templates: Object.keys(TITLE_TEMPLATES) });
+});
+
+// GET /api/video/intros — list available intro videos
+app.get('/api/video/intros', requireAuth, (req, res) => {
+  const fs = require('fs');
+  const introsDir = path.join(__dirname, 'intros');
+  if (!fs.existsSync(introsDir)) return res.json({ intros: [] });
+  const files = fs.readdirSync(introsDir).filter(f => /\.(mp4|mov|avi|webm)$/i.test(f));
+  res.json({ intros: files });
+});
+
+// POST /api/video/waveform — extract audio waveform data from video URL
+app.post('/api/video/waveform', requireAuth, async (req, res) => {
+  const { videoUrl } = req.body;
+  if (!videoUrl) return res.status(400).json({ error: 'videoUrl required' });
+
+  try {
+    const { downloadVideo, getVideoInfo } = require('./video-editor');
+    const fs = require('fs');
+    const waveformDir = path.join(__dirname, 'downloads');
+    if (!fs.existsSync(waveformDir)) fs.mkdirSync(waveformDir, { recursive: true });
+
+    const localPath = path.join(waveformDir, `waveform_${Date.now()}.mp4`);
+    await downloadVideo(videoUrl, localPath);
+
+    const info = getVideoInfo(localPath);
+    const numPoints = 200;
+    const duration = info.duration || 1;
+
+    let points = new Array(numPoints).fill(0);
+
+    if (info.hasAudio) {
+      const wavPath = localPath.replace('.mp4', '.wav');
+      const { execFileSync } = require('child_process');
+      try {
+        execFileSync('ffmpeg', [
+          '-y', '-i', localPath,
+          '-vn',
+          '-acodec', 'pcm_s16le',
+          '-ar', '22050',
+          '-ac', '1',
+          wavPath,
+        ], { stdio: 'pipe' });
+
+        const buf = fs.readFileSync(wavPath);
+        const samples = new Int16Array(buf.buffer, 44);
+        const samplesPerPoint = Math.max(1, Math.floor(samples.length / numPoints));
+
+        points = [];
+        for (let i = 0; i < numPoints; i++) {
+          const start = i * samplesPerPoint;
+          const end = Math.min(start + samplesPerPoint, samples.length);
+          let max = 0;
+          for (let j = start; j < end; j++) {
+            const abs = Math.abs(samples[j]);
+            if (abs > max) max = abs;
+          }
+          points.push(max / 32768);
+        }
+
+        try { fs.unlinkSync(wavPath); } catch {}
+      } catch (e) {
+        console.error('[waveform] Audio extraction failed:', e.message);
+      }
+    }
+
+    // Cleanup
+    try { fs.unlinkSync(localPath); } catch {}
+
+    res.json({ success: true, points, duration, sampleRate: 22050 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/video/preview — quick preview render (first 5s, low-res)
+app.post('/api/video/preview', requireAuth, async (req, res) => {
+  const {
+    videoUrl,
+    title = '',
+    subtitle = '',
+    introDuration = 3,
+    introVideo,
+    bgm,
+    bgmVolume = 0.15,
+    template = '',
+    style = null,
+    background = null,
+    titleColor = null,
+    subtitleColor = null,
+    titleSize = null,
+    subtitleSize = null,
+    position = null,
+  } = req.body;
+
+  if (!videoUrl) return res.status(400).json({ success: false, error: 'videoUrl required' });
+
+  try {
+    const fs = require('fs');
+    const { execFileSync } = require('child_process');
+    const outputDir = path.join(__dirname, 'output');
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+    const previewKey = `preview_${Date.now()}`;
+    const downloadPath = path.join(outputDir, `${previewKey}_src.mp4`);
+
+    // Download first 5s at low res for speed
+    const { downloadVideo } = require('./video-editor');
+    await downloadVideo(videoUrl, downloadPath);
+
+    const previewPath = path.join(outputDir, `${previewKey}_preview.mp4`);
+
+    // Build drawtext filter
+    const W = 540; const H = 960;
+    const titleSizePx = Math.round(W * (titleSize ? titleSize / 100 : 0.07));
+    const font = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+    const titleEsc = (title || '').replace(/'/g, "\\'").replace(/%/g, '\\%').replace(/:/g, '\\:');
+    const color = titleColor || '#ffffff';
+
+    let filter = `[0:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2`;
+    if (titleEsc) {
+      filter += `,drawtext=text='${titleEsc}':fontfile=${font}:fontsize=${titleSizePx}:fontcolor=${color}:x=(w-text_w)/2:y=(h-text_h)/2`;
+    }
+
+    // Quick render with low preset
+    const args = [
+      '-y', '-ss', '0', '-t', '5',
+      '-i', downloadPath,
+      '-filter_complex', filter,
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+      '-an',
+      '-shortest',
+      previewPath,
+    ];
+
+    execFileSync('ffmpeg', args, { stdio: 'pipe', timeout: 30000 });
+
+    // Cleanup source
+    try { fs.unlinkSync(downloadPath); } catch {}
+
+    res.json({
+      success: true,
+      outputPath: `/api/video/download/${path.basename(previewPath)}`,
+      fileName: path.basename(previewPath),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // POST /api/video/test — quick test edit with sample params

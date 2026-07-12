@@ -185,7 +185,7 @@ async function navigateTo(page) {
 
   try {
     // Page-specific init
-    if (page === 'create') { renderPresetGrid(); updateKeySelector(); }
+    if (page === 'create') { renderPresetGrid(); updateKeySelector(); initCreatePage(); }
     else if (page === 'results') { /* no auto-init */ }
     else if (page === 'history') { loadHistory(); startHistoryAutoRefresh(); }
     else if (page === 'keys') renderKeyManager();

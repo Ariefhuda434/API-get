@@ -1,6 +1,9 @@
 const EventEmitter = require('events');
+const path = require('path');
+const fs = require('fs');
 const { createJob, updateJob, getJob, updateKeyCreditByApiKey } = require('./db');
 const { trimAndUpload } = require('./video-trimmer');
+const { fullEdit } = require('./video-editor');
 
 const jobEmitter = new EventEmitter();
 const JOB_EVENT = 'job-update';
@@ -193,6 +196,51 @@ async function processJobWithData(jobId, job) {
       });
 
       emit(jobId, 'export_done', `${target.name}: ${results[i].status}`);
+    }
+
+    // Step 5b: Auto-edit if enabled
+    if (job.autoEdit) {
+      const aeConfig = job.autoEditConfig || {};
+      emit(jobId, 'step', 'Auto-editing clips...');
+      updateJob(jobId, { status: 'auto_editing', message: 'Memproses auto-edit...' });
+
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        if (r.status !== 'ready' || !r.src_url) continue;
+        emit(jobId, 'step', `Auto-edit ${i + 1}/${results.length}: ${r.name}`);
+
+        try {
+          const editResult = await fullEdit({
+            videoUrl: r.src_url,
+            title: aeConfig.title || '',
+            subtitle: aeConfig.subtitle || '',
+            introDuration: aeConfig.introDuration || 3,
+            introVideo: aeConfig.introVideo ? path.join(__dirname, 'intros', aeConfig.introVideo) : '',
+            bgmPath: aeConfig.bgmPath ? path.join(__dirname, 'music', aeConfig.bgmPath) : '',
+            bgmVolume: aeConfig.bgmVolume || 0.15,
+            fadeIn: aeConfig.fadeIn !== undefined ? aeConfig.fadeIn : 0.3,
+            fadeOut: aeConfig.fadeOut !== undefined ? aeConfig.fadeOut : 0.5,
+            template: aeConfig.template || '',
+            style: aeConfig.style || null,
+            background: aeConfig.background || null,
+            titleColor: aeConfig.titleColor || null,
+            subtitleColor: aeConfig.subtitleColor || null,
+            titleSize: aeConfig.titleSize || null,
+            subtitleSize: aeConfig.subtitleSize || null,
+            position: aeConfig.position || null,
+            trimStart: aeConfig.trimStart,
+            trimEnd: aeConfig.trimEnd,
+          });
+
+          if (editResult && editResult.outputPath) {
+            const serverUrl = `http://localhost:${process.env.PORT || 3002}`;
+            r.edited_src_url = `${serverUrl}/api/video/download/${editResult.fileName}`;
+          }
+        } catch (editErr) {
+          console.error(`[Job ${jobId}] Auto-edit failed for ${r.name}:`, editErr.message);
+          r.autoEditError = editErr.message;
+        }
+      }
     }
 
     // Calculate stats

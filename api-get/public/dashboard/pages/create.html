@@ -46,6 +46,34 @@
                 </div>
               </div>
 
+              <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                  <div class="card-title">Auto-Edit</div>
+                  <div class="toggle" id="toggle-auto-edit"></div>
+                </div>
+                <div id="auto-edit-config" style="display:none;">
+                  <div class="form-group">
+                    <label class="form-label">Intro Template</label>
+                    <select class="form-select" id="input-ae-template">
+                      <option value="">Default</option>
+                      <option value="podcast">Podcast</option>
+                      <option value="gaming">Gaming</option>
+                      <option value="tutorial">Tutorial</option>
+                      <option value="minimal">Minimal</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">BGM</label>
+                    <select class="form-select" id="input-ae-bgm">
+                      <option value="">No BGM</option>
+                    </select>
+                  </div>
+                  <div class="form-hint" style="margin-top:8px;">
+                    Configure more in <a href="#" onclick="navigateTo('editor'); return false;" style="color:var(--primary);">Klap Editor</a>
+                  </div>
+                </div>
+              </div>
+
               <!-- Hidden style settings — auto-set by preset selection -->
               <div style="display:none">
                 <select id="input-caption-style"><option value="bold">Bold</option></select>

@@ -21,11 +21,13 @@ function displayResults(results, config) {
     const color = getViralityColor((clip.viralityScore || clip.virality_score || 0));
     const label = getViralityLabel((clip.viralityScore || clip.virality_score || 0));
     const src = clip.src_url || '';
+    const editedSrc = clip.edited_src_url || '';
     const name = clip.name || clip._clip_name || 'Untitled';
     const expl = clip.viralityExplanation || clip.virality_explanation || '';
     const projectId = clip.clipId || clip.id || '';
     const folderId = config?.folderId || '';
     const apiKey = config?.apiKey || '';
+    const aeError = clip.autoEditError || '';
     const card = document.createElement('div');
     card.className = 'clip-card';
     card.innerHTML = `
@@ -36,6 +38,8 @@ function displayResults(results, config) {
       </div>
       <div class="clip-body">
         <div class="clip-title">${name}</div>
+        ${editedSrc ? '<div style="font-size:11px;color:var(--accent);margin-bottom:4px;">&#10003; Auto-edited</div>' : ''}
+        ${aeError ? `<div style="font-size:11px;color:var(--danger);margin-bottom:4px;">&#9888; Auto-edit: ${aeError}</div>` : ''}
         <div class="virality-meter" style="margin-bottom: 10px;">
           <div class="virality-bar">
             <div class="virality-fill" style="width: ${score}%; background: ${color};"></div>
@@ -45,9 +49,10 @@ function displayResults(results, config) {
         <div class="clip-explanation">${expl || 'No explanation'}</div>
         <div class="clip-actions">
           ${src ? `<a href="${src}" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;">Download</a>` : '<button class="btn btn-secondary btn-sm" disabled>Processing...</button>'}
-          <button class="btn btn-secondary btn-sm" onclick="copyLink('${src}')">Copy Link</button>
+          ${editedSrc ? `<a href="${editedSrc}" target="_blank" class="btn btn-accent btn-sm" style="text-decoration:none;">Edited</a>` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="copyLink('${editedSrc || src}')">Copy Link</button>
           ${src ? `<button class="btn btn-outline btn-sm" onclick="openTitleEditor('${src.replace(/'/g, "\\'")}', '${name.replace(/'/g, "\\'")}')">Title</button>` : ''}
-          ${src && folderId ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#ff0050,#00f2ea);color:#fff;border:none;" onclick="postClipToTikTok('${src.replace(/'/g, "\\'")}', '${name.replace(/'/g, "\\'")}', '${apiKey}', '${folderId}', '${projectId}')">TikTok</button>` : ''}
+          ${src && folderId ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#ff0050,#00f2ea);color:#fff;border:none;" onclick="postClipToTikTok('${(editedSrc || src).replace(/'/g, "\\'")}', '${name.replace(/'/g, "\\'")}', '${apiKey}', '${folderId}', '${projectId}')">TikTok</button>` : ''}
         </div>
       </div>`;
     grid.appendChild(card);

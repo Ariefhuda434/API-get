@@ -2,23 +2,26 @@
             <div class="editor-toolbar">
               <div class="editor-toolbar-left">
                 <div class="editor-source-input">
-                  <input type="text" class="form-input" id="editor-video-url" placeholder="Paste video URL atau pilih dari hasil..." style="width:400px;font-size:13px;">
+                  <input type="text" class="form-input" id="editor-video-url" placeholder="Paste video URL atau pilih dari hasil..." style="width:350px;font-size:13px;">
                   <button class="btn btn-primary btn-sm" onclick="loadEditorVideo()">Load</button>
                   <button class="btn btn-outline btn-sm" onclick="document.getElementById('editor-file-input').click()">File</button>
                   <input type="file" id="editor-file-input" accept="video/*" style="display:none" onchange="loadEditorFile(event)">
                 </div>
               </div>
               <div class="editor-toolbar-right">
-                <button class="btn btn-secondary btn-sm" id="editor-export-btn" onclick="exportEditedVideo()">Export</button>
+                <button class="btn btn-outline btn-sm" onclick="quickPreview()" title="Quick preview (first 5s, low-res)">Preview</button>
+                <button class="btn btn-primary btn-sm" onclick="exportEditedVideo()" id="editor-export-btn">Export</button>
               </div>
             </div>
 
             <div class="editor-main">
+              <!-- Preview -->
               <div class="editor-preview">
-                <div class="editor-preview-container">
+                <div class="editor-preview-container" id="editor-preview-container">
                   <video id="editor-video" controls crossorigin="anonymous" style="width:100%;max-height:100%;border-radius:8px;"></video>
-                  <div class="editor-text-overlay" id="editor-text-overlay">
-                    <div class="editor-overlay-text" id="editor-overlay-text" contenteditable="true">Your Text Here</div>
+                  <div class="editor-layers-container" id="editor-layers-container">
+                    <!-- Text layers rendered here by JS -->
+                    <!-- Image layers rendered here by JS -->
                   </div>
                 </div>
                 <div class="editor-preview-info">
@@ -26,125 +29,405 @@
                 </div>
               </div>
 
+              <!-- Controls -->
               <div class="editor-controls">
-                <div class="editor-controls-section">
-                  <h4 class="editor-controls-title">Text Overlay</h4>
-                  <div class="form-group">
-                    <label class="form-label">Text</label>
-                    <textarea class="form-textarea" id="editor-text-input" rows="2" oninput="updateOverlayText()" placeholder="Teks yang tampil di video...">Your Text Here</textarea>
+                <div class="editor-controls-tabs">
+                  <button class="editor-tab active" data-tab="text" onclick="switchEditorTab('text')">Text</button>
+                  <button class="editor-tab" data-tab="image" onclick="switchEditorTab('image')">Image</button>
+                  <button class="editor-tab" data-tab="shapes" onclick="switchEditorTab('shapes')">Shapes</button>
+                  <button class="editor-tab" data-tab="effects" onclick="switchEditorTab('effects')">Effects</button>
+                  <button class="editor-tab" data-tab="transition" onclick="switchEditorTab('transition')">Trans</button>
+                  <button class="editor-tab" data-tab="settings" onclick="switchEditorTab('settings')">Settings</button>
+                </div>
+
+                <!-- TEXT TAB -->
+                <div class="editor-tab-content active" id="editor-tab-text">
+                  <div class="editor-controls-section">
+                    <div class="editor-section-header">
+                      <h4 class="editor-controls-title">Text Layers</h4>
+                      <button class="btn btn-xs btn-primary" onclick="addTextLayer()">+ Add Text</button>
+                    </div>
+                    <div class="editor-layer-list" id="editor-text-layer-list">
+                      <div class="editor-layer-empty">No text layers. Click "+ Add Text"</div>
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label class="form-label">Font</label>
-                    <select class="form-select" id="editor-font-select" onchange="updateOverlayStyle()">
-                      <option value="Arial">Arial</option>
-                      <option value="Helvetica">Helvetica</option>
-                      <option value="Verdana">Verdana</option>
-                      <option value="Georgia">Georgia</option>
-                      <option value="Times New Roman">Times New Roman</option>
-                      <option value="Courier New">Courier New</option>
-                      <option value="Impact">Impact</option>
-                      <option value="Comic Sans MS">Comic Sans MS</option>
-                      <option value="Trebuchet MS">Trebuchet MS</option>
-                    </select>
+                  <div class="editor-controls-section" id="editor-text-controls" style="display:none;">
+                    <div class="form-group">
+                      <label class="form-label">Text</label>
+                      <textarea class="form-textarea" id="editor-text-input" rows="2" oninput="updateSelectedText()" placeholder="Teks..."></textarea>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">Font</label>
+                        <select class="form-select" id="editor-font-select" onchange="updateSelectedText()">
+                          <option value="Arial">Arial</option>
+                          <option value="Helvetica">Helvetica</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                          <option value="Impact">Impact</option>
+                          <option value="Comic Sans MS">Comic Sans MS</option>
+                          <option value="Trebuchet MS">Trebuchet MS</option>
+                          <option value="Montserrat">Montserrat</option>
+                          <option value="Poppins">Poppins</option>
+                          <option value="Roboto">Roboto</option>
+                          <option value="Oswald">Oswald</option>
+                          <option value="Playfair Display">Playfair Display</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Size</label>
+                        <input type="range" class="form-range" id="editor-font-size" min="12" max="120" value="48" oninput="updateSelectedText()">
+                      </div>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">Color</label>
+                        <input type="color" class="form-input" id="editor-font-color" value="#ffffff" oninput="updateSelectedText()" style="height:38px;padding:2px;">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Opacity</label>
+                        <input type="range" class="form-range" id="editor-text-opacity" min="0" max="100" value="100" oninput="updateSelectedText()">
+                      </div>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">BG Color</label>
+                        <input type="color" class="form-input" id="editor-text-bgcolor" value="#000000" oninput="updateSelectedText()" style="height:38px;padding:2px;">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">BG Opacity</label>
+                        <input type="range" class="form-range" id="editor-text-bgopacity" min="0" max="100" value="0" oninput="updateSelectedText()">
+                      </div>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">Style</label>
+                        <select class="form-select" id="editor-text-style" onchange="updateSelectedText()">
+                          <option value="normal">Normal</option>
+                          <option value="bold">Bold</option>
+                          <option value="outline">Outline</option>
+                          <option value="shadow">Shadow</option>
+                          <option value="glow">Glow</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Letter Spacing</label>
+                        <input type="range" class="form-range" id="editor-text-spacing" min="0" max="20" value="0" oninput="updateSelectedText()">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">BG Radius</label>
+                      <input type="range" class="form-range" id="editor-text-borderradius" min="0" max="50" value="4" oninput="updateSelectedText()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Position</label>
+                      <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:11px;color:var(--text-dim);min-width:12px;">X:</span>
+                        <input type="range" class="form-range" id="editor-text-x" min="0" max="100" value="50" oninput="updateSelectedText()" style="flex:1;">
+                        <span id="editor-text-x-val" style="font-size:11px;min-width:30px;color:var(--text-dim);">50%</span>
+                        <span style="font-size:11px;color:var(--text-dim);min-width:12px;margin-left:8px;">Y:</span>
+                        <input type="range" class="form-range" id="editor-text-y" min="0" max="100" value="50" oninput="updateSelectedText()" style="flex:1;">
+                        <span id="editor-text-y-val" style="font-size:11px;min-width:30px;color:var(--text-dim);">50%</span>
+                      </div>
+                    </div>
+                    <div style="margin-top:6px;display:flex;gap:4px;">
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('left')" title="Align Left">◀ Left</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('center-h')" title="Center Horizontal">↔ Center</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('right')" title="Align Right">Right ▶</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('top')" title="Align Top">▲ Top</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('center-v')" title="Center Vertical">↕ Middle</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('bottom')" title="Align Bottom">Bottom ▼</button>
+                    </div>
+                    <div style="margin-top:8px;">
+                      <button class="btn btn-xs btn-danger" onclick="deleteSelectedLayer()">Delete Layer</button>
+                    </div>
                   </div>
-                  <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                </div>
+
+                <!-- IMAGE TAB -->
+                <div class="editor-tab-content" id="editor-tab-image">
+                  <div class="editor-controls-section">
+                    <div class="editor-section-header">
+                      <h4 class="editor-controls-title">Image Overlays</h4>
+                      <button class="btn btn-xs btn-primary" onclick="document.getElementById('editor-image-input').click()">+ Add Image</button>
+                      <input type="file" id="editor-image-input" accept="image/*" style="display:none" onchange="addImageLayer(event)">
+                    </div>
+                    <div class="editor-layer-list" id="editor-image-layer-list">
+                      <div class="editor-layer-empty">No images. Click "+ Add Image"</div>
+                    </div>
+                  </div>
+                  <div class="editor-controls-section" id="editor-image-controls" style="display:none;">
+                    <div class="form-group">
+                      <label class="form-label">Opacity</label>
+                      <input type="range" class="form-range" id="editor-image-opacity" min="0" max="100" value="100" oninput="updateSelectedImage()">
+                    </div>
                     <div class="form-group">
                       <label class="form-label">Size</label>
-                      <input type="range" class="form-range" id="editor-font-size" min="16" max="96" value="48" oninput="updateOverlayStyle()">
+                      <input type="range" class="form-range" id="editor-image-size" min="10" max="200" value="100" oninput="updateSelectedImage()">
                     </div>
-                    <div class="form-group">
-                      <label class="form-label">Color</label>
-                      <input type="color" class="form-input" id="editor-font-color" value="#ffffff" oninput="updateOverlayStyle()" style="height:38px;padding:2px;">
-                    </div>
-                  </div>
-                  <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom:0;">
                       <label class="form-label">Position</label>
-                      <select class="form-select" id="editor-text-position" onchange="updateOverlayStyle()">
-                        <option value="top">Top</option>
-                        <option value="center" selected>Center</option>
-                        <option value="bottom">Bottom</option>
+                      <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:11px;color:var(--text-dim);">X:</span>
+                        <input type="range" class="form-range" id="editor-image-x" min="0" max="100" value="50" oninput="updateSelectedImage()" style="flex:1;">
+                        <span style="font-size:11px;color:var(--text-dim);">Y:</span>
+                        <input type="range" class="form-range" id="editor-image-y" min="0" max="100" value="50" oninput="updateSelectedImage()" style="flex:1;">
+                      </div>
+                    </div>
+                    <div style="margin-top:6px;display:flex;gap:4px;">
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('left')" title="Align Left">◀ Left</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('center-h')" title="Center Horizontal">↔ Center</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('right')" title="Align Right">Right ▶</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('top')" title="Align Top">▲ Top</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('center-v')" title="Center Vertical">↕ Middle</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('bottom')" title="Align Bottom">Bottom ▼</button>
+                    </div>
+                    <div style="margin-top:8px;">
+                      <button class="btn btn-xs btn-danger" onclick="deleteSelectedLayer()">Delete Layer</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SHAPES TAB -->
+                <div class="editor-tab-content" id="editor-tab-shapes">
+                  <div class="editor-controls-section">
+                    <div class="editor-section-header">
+                      <h4 class="editor-controls-title">Shapes</h4>
+                    </div>
+                    <div class="editor-shape-palette">
+                      <button class="editor-shape-btn" onclick="addShapeLayer('rectangle')" title="Rectangle">▬</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('circle')" title="Circle">●</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('ellipse')" title="Ellipse">⬮</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('triangle')" title="Triangle">▲</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('star')" title="Star">★</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('diamond')" title="Diamond">◆</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('arrow')" title="Arrow">➤</button>
+                      <button class="editor-shape-btn" onclick="addShapeLayer('line')" title="Line">╌</button>
+                    </div>
+                    <div class="editor-layer-list" id="editor-shape-layer-list">
+                      <div class="editor-layer-empty">No shapes. Pick one above</div>
+                    </div>
+                  </div>
+                  <div class="editor-controls-section" id="editor-shape-controls" style="display:none;">
+                    <div class="form-group">
+                      <label class="form-label" id="editor-shape-type-label">Shape</label>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">Width</label>
+                        <input type="range" class="form-range" id="editor-shape-width" min="5" max="100" value="20" oninput="updateSelectedShape()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Height</label>
+                        <input type="range" class="form-range" id="editor-shape-height" min="5" max="100" value="20" oninput="updateSelectedShape()">
+                      </div>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">Color</label>
+                        <input type="color" class="form-input" id="editor-shape-color" value="#ffffff" oninput="updateSelectedShape()" style="height:38px;padding:2px;">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Opacity</label>
+                        <input type="range" class="form-range" id="editor-shape-opacity" min="0" max="100" value="100" oninput="updateSelectedShape()">
+                      </div>
+                    </div>
+                    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div class="form-group">
+                        <label class="form-label">Border</label>
+                        <input type="range" class="form-range" id="editor-shape-border" min="0" max="20" value="0" oninput="updateSelectedShape()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Border Color</label>
+                        <input type="color" class="form-input" id="editor-shape-bordercolor" value="#ffffff" oninput="updateSelectedShape()" style="height:38px;padding:2px;">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Rotation °</label>
+                      <input type="range" class="form-range" id="editor-shape-rotation" min="0" max="360" value="0" oninput="updateSelectedShape()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Position</label>
+                      <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:11px;color:var(--text-dim);min-width:12px;">X:</span>
+                        <input type="range" class="form-range" id="editor-shape-x" min="0" max="100" value="50" oninput="updateSelectedShape()" style="flex:1;">
+                        <span id="editor-shape-x-val" style="font-size:11px;min-width:30px;color:var(--text-dim);">50%</span>
+                        <span style="font-size:11px;color:var(--text-dim);min-width:12px;margin-left:8px;">Y:</span>
+                        <input type="range" class="form-range" id="editor-shape-y" min="0" max="100" value="50" oninput="updateSelectedShape()" style="flex:1;">
+                        <span id="editor-shape-y-val" style="font-size:11px;min-width:30px;color:var(--text-dim);">50%</span>
+                      </div>
+                    </div>
+                    <div style="margin-top:6px;display:flex;gap:4px;">
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('left')" title="Align Left">◀ Left</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('center-h')" title="Center Horizontal">↔ Center</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('right')" title="Align Right">Right ▶</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('top')" title="Align Top">▲ Top</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('center-v')" title="Center Vertical">↕ Middle</button>
+                      <button class="btn btn-xs btn-outline" onclick="alignLayer('bottom')" title="Align Bottom">Bottom ▼</button>
+                    </div>
+                    <div style="margin-top:8px;">
+                      <button class="btn btn-xs btn-danger" onclick="deleteSelectedLayer()">Delete Shape</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- EFFECTS TAB -->
+                <div class="editor-tab-content" id="editor-tab-effects">
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">Video Filters</h4>
+                    <div class="form-group">
+                      <label class="form-label">Brightness <span id="ef-brightness-val">0</span></label>
+                      <input type="range" class="form-range" id="ef-brightness" min="-100" max="100" value="0" oninput="applyEffects()">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Contrast <span id="ef-contrast-val">0</span></label>
+                      <input type="range" class="form-range" id="ef-contrast" min="-100" max="100" value="0" oninput="applyEffects()">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Saturation <span id="ef-saturation-val">0</span></label>
+                      <input type="range" class="form-range" id="ef-saturation" min="-100" max="100" value="0" oninput="applyEffects()">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Blur <span id="ef-blur-val">0</span></label>
+                      <input type="range" class="form-range" id="ef-blur" min="0" max="20" value="0" oninput="applyEffects()">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Grayscale <span id="ef-grayscale-val">0%</span></label>
+                      <input type="range" class="form-range" id="ef-grayscale" min="0" max="100" value="0" oninput="applyEffects()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Sepia <span id="ef-sepia-val">0%</span></label>
+                      <input type="range" class="form-range" id="ef-sepia" min="0" max="100" value="0" oninput="applyEffects()">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- TRANSITION TAB -->
+                <div class="editor-tab-content" id="editor-tab-transition">
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">Transition</h4>
+                    <div class="form-group">
+                      <label class="form-label">Type</label>
+                      <select class="form-select" id="editor-transition-type" onchange="onTransitionChange()">
+                        <option value="none">None</option>
+                        <option value="crossfade">Crossfade</option>
+                        <option value="fadeblack">Fade to Black</option>
+                        <option value="fadewhite">Fade to White</option>
+                        <option value="slideleft">Slide Left</option>
+                        <option value="slideright">Slide Right</option>
+                        <option value="slideup">Slide Up</option>
+                        <option value="slidedown">Slide Down</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Duration <span id="editor-transition-dur-val">0.3s</span></label>
+                      <input type="range" class="form-range" id="editor-transition-duration" min="1" max="10" value="3" oninput="document.getElementById('editor-transition-dur-val').textContent=(this.value/10)+'s'" step="1">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SETTINGS TAB -->
+                <div class="editor-tab-content" id="editor-tab-settings">
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">BGM</h4>
+                    <div class="form-group">
+                      <select class="form-select" id="editor-bgm-select">
+                        <option value="">No BGM</option>
                       </select>
                     </div>
                     <div class="form-group">
-                      <label class="form-label">Style</label>
-                      <select class="form-select" id="editor-text-style" onchange="updateOverlayStyle()">
-                        <option value="normal">Normal</option>
-                        <option value="bold">Bold</option>
-                        <option value="outline">Outline</option>
-                        <option value="shadow">Shadow</option>
-                        <option value="glow">Glow</option>
+                      <label class="form-label">Volume: <span id="editor-bgm-volume-label">15%</span></label>
+                      <input type="range" class="form-range" id="editor-bgm-volume" min="0" max="100" value="15">
+                    </div>
+                  </div>
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">Intro</h4>
+                    <div class="form-group">
+                      <label class="form-label">Intro Video</label>
+                      <select class="form-select" id="editor-intro-select">
+                        <option value="">No Intro Video</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Duration</label>
+                      <select class="form-select" id="editor-intro-duration">
+                        <option value="2">2s</option>
+                        <option value="3" selected>3s</option>
+                        <option value="4">4s</option>
+                        <option value="5">5s</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Title Template</label>
+                      <select class="form-select" id="editor-template-select">
+                        <option value="">Default</option>
                       </select>
                     </div>
                   </div>
-                </div>
-
-                <div class="editor-controls-section">
-                  <h4 class="editor-controls-title">Trim</h4>
-                  <div class="form-group">
-                    <label class="form-label">Start</label>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                      <input type="range" class="form-range" id="editor-trim-start" min="0" max="100" value="0" oninput="updateTrimDisplay()" style="flex:1;">
-                      <span id="editor-trim-start-label" style="font-size:12px;min-width:40px;color:var(--text-dim);">0:00</span>
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">Frame Preset</h4>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <select class="form-select" id="editor-frame-preset" onchange="onFramePresetChange()">
+                        <option value="none">Original</option>
+                        <option value="9:16">TikTok / Reels / Shorts (9:16)</option>
+                        <option value="1:1">Instagram Feed (1:1)</option>
+                        <option value="4:5">Instagram Portrait (4:5)</option>
+                        <option value="16:9">YouTube / Landscape (16:9)</option>
+                      </select>
                     </div>
                   </div>
-                  <div class="form-group">
-                    <label class="form-label">End</label>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                      <input type="range" class="form-range" id="editor-trim-end" min="0" max="100" value="100" oninput="updateTrimDisplay()" style="flex:1;">
-                      <span id="editor-trim-end-label" style="font-size:12px;min-width:40px;color:var(--text-dim);">0:00</span>
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">Freeze Frame Title</h4>
+                    <div class="form-group">
+                      <label class="form-label">
+                        <input type="checkbox" id="editor-freeze-enable" onchange="onFreezeChange()" style="margin-right:6px;">
+                        Enable freeze frame intro
+                      </label>
                     </div>
-                  </div>
-                </div>
-
-                <div class="editor-controls-section">
-                  <h4 class="editor-controls-title">BGM</h4>
-                  <div class="form-group">
-                    <select class="form-select" id="editor-bgm-select">
-                      <option value="">No BGM</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Volume: <span id="editor-bgm-volume-label">15%</span></label>
-                    <input type="range" class="form-range" id="editor-bgm-volume" min="0" max="100" value="15">
-                  </div>
-                </div>
-
-                <div class="editor-controls-section">
-                  <h4 class="editor-controls-title">Intro Title</h4>
-                  <div class="form-group">
-                    <label class="form-label">Duration</label>
-                    <select class="form-select" id="editor-intro-duration">
-                      <option value="2">2s</option>
-                      <option value="3" selected>3s</option>
-                      <option value="4">4s</option>
-                      <option value="5">5s</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0;">
-                    <label class="form-label">Template</label>
-                    <select class="form-select" id="editor-template-select">
-                      <option value="">Default</option>
-                    </select>
+                    <div class="form-group">
+                      <label class="form-label">Freeze at (second)</label>
+                      <input type="number" class="form-input" id="editor-freeze-time" value="1" min="0" step="0.5" onchange="onFreezeChange()" style="width:80px;">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Pause Duration</label>
+                      <select class="form-select" id="editor-freeze-duration" onchange="onFreezeChange()">
+                        <option value="2">2s</option>
+                        <option value="3" selected>3s</option>
+                        <option value="4">4s</option>
+                        <option value="5">5s</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Title Text</label>
+                      <input type="text" class="form-input" id="editor-freeze-title" placeholder="Title on freeze frame" onchange="onFreezeChange()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Subtitle</label>
+                      <input type="text" class="form-input" id="editor-freeze-subtitle" placeholder="Subtitle" onchange="onFreezeChange()">
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
+            <!-- Timeline -->
             <div class="editor-timeline">
               <div class="editor-timeline-header">
                 <div class="editor-timeline-controls">
                   <button class="btn btn-sm btn-icon" onclick="zoomTimeline(-1)" title="Zoom Out">−</button>
                   <span class="editor-zoom-level" id="editor-zoom-level">1x</span>
                   <button class="btn btn-sm btn-icon" onclick="zoomTimeline(1)" title="Zoom In">+</button>
+                  <span class="editor-timeline-sep"></span>
+                  <button class="btn btn-sm btn-outline" onclick="splitAtPlayhead()" title="Split at playhead (S)">✂ Split</button>
+                  <button class="btn btn-sm btn-outline" onclick="removeSelectedSegment()" title="Delete selected segment">🗑</button>
                 </div>
                 <div class="editor-timeline-time" id="editor-timeline-ruler">0:00</div>
               </div>
               <div class="editor-timeline-track-area" id="editor-timeline-track">
                 <canvas id="editor-timeline-canvas"></canvas>
                 <div class="editor-playhead" id="editor-playhead"></div>
-                <div class="editor-trim-handle editor-trim-start" id="editor-trim-handle-start"></div>
-                <div class="editor-trim-handle editor-trim-end" id="editor-trim-handle-end"></div>
                 <div class="editor-timeline-placeholder" id="editor-timeline-empty">
                   <p>Load a video to start editing</p>
                 </div>
