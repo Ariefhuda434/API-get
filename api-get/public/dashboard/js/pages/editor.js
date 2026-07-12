@@ -790,6 +790,13 @@ function loadEditorFile(event) {
 function onVideoLoaded() {
   const video = document.getElementById('editor-video');
   editorDuration = video.duration || 0;
+  // Ensure video fills container
+  video.style.position = 'absolute';
+  video.style.inset = '0';
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.objectFit = 'contain';
+  video.style.display = 'block';
   document.getElementById('editor-time-duration').textContent = formatTime(editorDuration);
   document.getElementById('editor-timeline-empty').style.display = 'none';
   initSegments();
