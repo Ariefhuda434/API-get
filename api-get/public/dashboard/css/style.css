@@ -786,7 +786,7 @@ body {
 .editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; gap: 12px; flex-shrink: 0; }
 .editor-toolbar-left, .editor-toolbar-right { display: flex; align-items: center; gap: 8px; }
 .editor-source-input { display: flex; align-items: center; gap: 6px; }
-.editor-main { flex: 1; display: grid; grid-template-columns: 1fr 300px; gap: 12px; min-height: 0; overflow: hidden; }
+.editor-main { flex: 1; display: grid; grid-template-columns: 1fr 280px; gap: 12px; min-height: 0; overflow: hidden; }
 .editor-preview { display: grid; grid-template-rows: 1fr auto; min-width: 0; min-height: 0; }
 .editor-preview-container { position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 200px; }
 .editor-preview-container video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }

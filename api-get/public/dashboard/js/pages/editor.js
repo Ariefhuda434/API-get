@@ -1,654 +1,391 @@
-// ── Video Editor State ────────────────────────────────────────────────
-
-let editorVideo = null;
-let editorDuration = 0;
-let editorZoom = 1;
-let editorPlayheadPos = 0;
-let editorIsPlaying = false;
-let editorIsDraggingPlayhead = false;
-let editorRAF = null;
-let editorBgmTracks = [];
-let editorTemplates = [];
-let editorIntros = [];
-let editorWaveformData = null;
-let editorWaveformLoading = false;
-let editorCurrentTab = 'text';
-
-// ── Layer State ───────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────
 let textLayers = [];
-let imageLayers = [];
 let shapeLayers = [];
-let selectedLayerId = null;
-let layerIdCounter = 1;
-let isDraggingLayer = false;
-let dragOffset = { x: 0, y: 0 };
+let selectedLayer = null; // { id, type: 'text'|'shape' }
+let editorDuration = 0;
+let editorSegments = [];
+let editorSelectedSegment = 0;
+let editorZoom = 1;
+let editorIsPlaying = false;
+let editorAnimFrame = null;
+let layerIdCounter = 0;
 
-// ── Segment State ─────────────────────────────────────────────────────
-let segments = [];
-let selectedSegmentIdx = -1;
-
-// ── Effects State ─────────────────────────────────────────────────────
-let editorEffects = {
-  brightness: 0,
-  contrast: 0,
-  saturation: 0,
-  blur: 0,
-  grayscale: 0,
-  sepia: 0,
-};
-
-// ── Transition State ──────────────────────────────────────────────────
-let editorTransition = { type: 'none', duration: 0.3 };
-
-// ── Frame Preset & Freeze Frame ──────────────────────────────────────
-let editorFramePreset = 'none';
-let editorFreezeFrame = { enabled: false, time: 1, duration: 3, title: '', subtitle: '' };
-
-const PX_PER_SECOND_BASE = 80;
-const PADDING = 60;
-
+// ── Init ───────────────────────────────────────────────────────────────
 function initEditor() {
-  // Reset state
-  selectedLayerId = null;
-  isDraggingLayer = false;
-
+  textLayers = [];
+  shapeLayers = [];
+  selectedLayer = null;
+  editorDuration = 0;
+  editorSegments = [];
+  layerIdCounter = 0;
+  editorZoom = 1;
   const video = document.getElementById('editor-video');
-  if (video) {
-    // Stop any playing video before re-init
-    video.pause();
-  }
-
-  loadBgmTracks();
-  loadTemplates();
-  loadIntros();
+  if (video) video.pause();
   setupEditorListeners();
-  setupTimelineMouse();
-  initEditorFromUrl();
-  setupKeyboardShortcuts();
-  initLayerDrag();
+  renderLayerList();
 }
 
-// ── Initialization helpers ────────────────────────────────────────────
+function setupEditorListeners() {
+  const video = document.getElementById('editor-video');
+  if (!video) return;
+  video.onloadedmetadata = onVideoLoaded;
+  video.ontimeupdate = onVideoTimeUpdate;
+  video.onplay = () => { editorIsPlaying = true; startPlayheadAnim(); };
+  video.onpause = () => { editorIsPlaying = false; stopPlayheadAnim(); };
+  video.onseeked = updatePlayheadPosition;
+  video.onerror = () => showToast('Video error: format tidak didukung');
 
-function loadBgmTracks() {
-  fetch('/api/video/music')
-    .then(r => r.json())
-    .then(data => {
-      editorBgmTracks = data.tracks || [];
-      const sel = document.getElementById('editor-bgm-select');
-      sel.innerHTML = '<option value="">No BGM</option>' +
-        editorBgmTracks.map(t => `<option value="${t}">${t}</option>`).join('');
-    })
-    .catch(() => {});
-}
+  const track = document.getElementById('editor-timeline-track');
+  if (track) track.onmousedown = onTimelineMouseDown;
 
-function loadTemplates() {
-  fetch('/api/video/templates')
-    .then(r => r.json())
-    .then(data => {
-      editorTemplates = data.templates || [];
-      const sel = document.getElementById('editor-template-select');
-      sel.innerHTML = '<option value="">Default</option>' +
-        editorTemplates.map(t => `<option value="${t}">${t}</option>`).join('');
-    })
-    .catch(() => {});
-}
-
-function loadIntros() {
-  fetch('/api/video/intros')
-    .then(r => r.json())
-    .then(data => {
-      editorIntros = data.intros || [];
-      const sel = document.getElementById('editor-intro-select');
-      if (sel) {
-        sel.innerHTML = '<option value="">No Intro Video</option>' +
-          editorIntros.map(t => `<option value="${t}">${t.replace(/\.\w+$/, '').replace('intro_', '')}</option>`).join('');
-      }
-    })
-    .catch(() => {});
-}
-
-// ── Layer drag — handles drag-drop on the preview ────────────────────
-
-function initLayerDrag() {
-  const container = document.getElementById('editor-layers-container');
-  if (!container) return;
-  container.onmousedown = onLayerMouseDown;
-}
-
-function onLayerMouseDown(e) {
-  const layerEl = e.target.closest('.editor-layer-el');
-  if (!layerEl) return;
-  const id = parseInt(layerEl.dataset.layerId);
-  selectLayerById(id);
-  const type = layerEl.dataset.layerType;
-  const rect = layerEl.getBoundingClientRect();
-  const containerRect = document.getElementById('editor-layers-container').getBoundingClientRect();
-  isDraggingLayer = true;
-  dragOffset = {
-    x: e.clientX - (rect.left + rect.width / 2),
-    y: e.clientY - (rect.top + rect.height / 2),
+  // Keyboard shortcuts
+  document.onkeydown = (e) => {
+    if (e.key === 's' || e.key === 'S') splitAtPlayhead();
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') deleteSelectedLayer();
+    }
   };
-  layerEl.style.cursor = 'grabbing';
 }
 
-function onLayerMouseMove(e) {
-  if (!isDraggingLayer || !selectedLayerId) return;
-  const container = document.getElementById('editor-layers-container');
-  const rect = container.getBoundingClientRect();
-  const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100));
-  const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100));
-
-  const layer = findLayer(selectedLayerId);
-  if (!layer) return;
-
-  layer.x = Math.round(xPct * 10) / 10;
-  layer.y = Math.round(yPct * 10) / 10;
-
-  if (layer.type === 'text') {
-    document.getElementById('editor-text-x').value = layer.x;
-    document.getElementById('editor-text-y').value = layer.y;
-    document.getElementById('editor-text-x-val').textContent = layer.x + '%';
-    document.getElementById('editor-text-y-val').textContent = layer.y + '%';
-  } else if (layer.type === 'image') {
-    document.getElementById('editor-image-x').value = layer.x;
-    document.getElementById('editor-image-y').value = layer.y;
-  } else if (layer.type === 'shape') {
-    document.getElementById('editor-shape-x').value = layer.x;
-    document.getElementById('editor-shape-y').value = layer.y;
-    const xv = document.getElementById('editor-shape-x-val');
-    const yv = document.getElementById('editor-shape-y-val');
-    if (xv) xv.textContent = layer.x + '%';
-    if (yv) yv.textContent = layer.y + '%';
-  }
-  renderLayers();
-}
-
-function onLayerMouseUp() {
-  isDraggingLayer = false;
-  const el = document.querySelector('.editor-layer-el[data-layer-id="' + selectedLayerId + '"]');
-  if (el) el.style.cursor = 'grab';
-}
-
-// ── Layer Helpers ─────────────────────────────────────────────────────
-
-function findLayer(id) {
-  if (!id) return null;
-  let l = textLayers.find(t => t.id === id);
-  if (l) return l;
-  l = imageLayers.find(i => i.id === id);
-  if (l) return l;
-  return shapeLayers.find(s => s.id === id);
-}
-
-function selectLayerById(id) {
-  selectedLayerId = id;
-  const layer = findLayer(id);
-  if (!layer) return;
-  if (layer.type === 'text') {
-    switchEditorTab('text');
-    showTextControls(layer);
-  } else if (layer.type === 'image') {
-    switchEditorTab('image');
-    showImageControls(layer);
-  } else if (layer.type === 'shape') {
-    switchEditorTab('shapes');
-    showShapeControls(layer);
-  }
-  refreshLayerList();
-  renderLayers();
-}
-
-// ── Tab Switching ─────────────────────────────────────────────────────
-
+// ── Tab Switching ──────────────────────────────────────────────────────
 function switchEditorTab(tab) {
-  editorCurrentTab = tab;
-  document.querySelectorAll('.editor-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.querySelectorAll('.editor-tab-content').forEach(c => c.classList.toggle('active', c.id === 'editor-tab-' + tab));
+  document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.editor-tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.editor-tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`editor-tab-${tab}`).classList.add('active');
 }
 
-// ── Text Layer Functions ──────────────────────────────────────────────
-
+// ── Layer Management ───────────────────────────────────────────────────
 function addTextLayer() {
-  const layer = {
-    id: layerIdCounter++,
-    type: 'text',
-    text: 'Double click to edit',
-    font: 'Arial',
-    size: 48,
-    color: '#ffffff',
-    opacity: 100,
-    bgColor: '#000000',
-    bgOpacity: 0,
-    style: 'normal',
-    spacing: 0,
-    borderRadius: 4,
-    x: 50,
-    y: 50,
-  };
-  textLayers.push(layer);
-  selectLayerById(layer.id);
-  showTextControls(layer);
-  refreshLayerList();
+  const id = ++layerIdCounter;
+  textLayers.push({
+    id, type: 'text',
+    text: 'Your Text',
+    font: 'Arial', size: 48, color: '#ffffff', opacity: 100,
+    bgColor: '#000000', bgOpacity: 0, borderRadius: 4,
+    style: 'normal', spacing: 0, x: 50, y: 50
+  });
+  selectLayer(id, 'text');
+  renderLayerList();
   renderLayers();
+  showTextControls();
 }
 
-function showTextControls(layer) {
-  const panel = document.getElementById('editor-text-controls');
-  panel.style.display = 'block';
-  document.getElementById('editor-text-input').value = layer.text;
-  document.getElementById('editor-font-select').value = layer.font;
-  document.getElementById('editor-font-size').value = layer.size;
-  document.getElementById('editor-font-color').value = layer.color;
-  document.getElementById('editor-text-opacity').value = layer.opacity;
-  document.getElementById('editor-text-bgcolor').value = layer.bgColor;
-  document.getElementById('editor-text-bgopacity').value = layer.bgOpacity;
-  document.getElementById('editor-text-style').value = layer.style;
-  document.getElementById('editor-text-spacing').value = layer.spacing;
-  document.getElementById('editor-text-borderradius').value = layer.borderRadius || 0;
-  document.getElementById('editor-text-x').value = layer.x;
-  document.getElementById('editor-text-y').value = layer.y;
-  document.getElementById('editor-text-x-val').textContent = layer.x + '%';
-  document.getElementById('editor-text-y-val').textContent = layer.y + '%';
-}
-
-function updateSelectedText() {
-  const layer = findLayer(selectedLayerId);
-  if (!layer || layer.type !== 'text') return;
-  layer.text = document.getElementById('editor-text-input').value;
-  layer.font = document.getElementById('editor-font-select').value;
-  layer.size = parseInt(document.getElementById('editor-font-size').value);
-  layer.color = document.getElementById('editor-font-color').value;
-  layer.opacity = parseInt(document.getElementById('editor-text-opacity').value);
-  layer.bgColor = document.getElementById('editor-text-bgcolor').value;
-  layer.bgOpacity = parseInt(document.getElementById('editor-text-bgopacity').value);
-  layer.style = document.getElementById('editor-text-style').value;
-  layer.spacing = parseInt(document.getElementById('editor-text-spacing').value);
-  layer.borderRadius = parseInt(document.getElementById('editor-text-borderradius').value);
-  layer.x = parseFloat(document.getElementById('editor-text-x').value);
-  layer.y = parseFloat(document.getElementById('editor-text-y').value);
-  document.getElementById('editor-text-x-val').textContent = layer.x + '%';
-  document.getElementById('editor-text-y-val').textContent = layer.y + '%';
-  refreshLayerList();
+function addShapeLayer(shapeType) {
+  const id = ++layerIdCounter;
+  shapeLayers.push({
+    id, type: 'shape', shapeType,
+    width: 15, height: 15, color: '#ffffff', opacity: 100,
+    border: 0, borderColor: '#ffffff', rotation: 0, x: 50, y: 50
+  });
+  selectLayer(id, 'shape');
+  renderLayerList();
   renderLayers();
+  showShapeControls();
 }
 
-// ── Image Layer Functions ────────────────────────────────────────────
-
-function addImageLayer(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const layer = {
-      id: layerIdCounter++,
-      type: 'image',
-      src: e.target.result,
-      x: 50,
-      y: 50,
-      size: 100,
-      opacity: 100,
-    };
-    imageLayers.push(layer);
-    selectLayerById(layer.id);
-    showImageControls(layer);
-    refreshLayerList();
-    renderLayers();
-  };
-  reader.readAsDataURL(file);
-  event.target.value = '';
+function selectLayer(id, type) {
+  selectedLayer = { id, type };
+  renderLayerList();
+  document.querySelectorAll('.editor-layer-item').forEach(el => {
+    if (parseInt(el.dataset.id) === id && el.dataset.type === type) el.classList.add('selected');
+  });
+  if (type === 'text') showTextControls();
+  else showShapeControls();
 }
-
-function showImageControls(layer) {
-  const panel = document.getElementById('editor-image-controls');
-  panel.style.display = 'block';
-  document.getElementById('editor-image-opacity').value = layer.opacity;
-  document.getElementById('editor-image-size').value = layer.size;
-  document.getElementById('editor-image-x').value = layer.x;
-  document.getElementById('editor-image-y').value = layer.y;
-}
-
-function updateSelectedImage() {
-  const layer = findLayer(selectedLayerId);
-  if (!layer || layer.type !== 'image') return;
-  layer.opacity = parseInt(document.getElementById('editor-image-opacity').value);
-  layer.size = parseInt(document.getElementById('editor-image-size').value);
-  layer.x = parseFloat(document.getElementById('editor-image-x').value);
-  layer.y = parseFloat(document.getElementById('editor-image-y').value);
-  refreshLayerList();
-  renderLayers();
-}
-
-// ── Shape Layer Functions ────────────────────────────────────────────
-
-const SHAPE_TYPES = [
-  { id: 'rectangle', label: 'Rectangle', icon: '▬' },
-  { id: 'circle', label: 'Circle', icon: '●' },
-  { id: 'ellipse', label: 'Ellipse', icon: '⬮' },
-  { id: 'triangle', label: 'Triangle', icon: '▲' },
-  { id: 'star', label: 'Star', icon: '★' },
-  { id: 'diamond', label: 'Diamond', icon: '◆' },
-  { id: 'arrow', label: 'Arrow', icon: '➤' },
-  { id: 'line', label: 'Line', icon: '╌' },
-];
-
-function addShapeLayer(type) {
-  const layer = {
-    id: layerIdCounter++,
-    type: 'shape',
-    shapeType: type,
-    x: 50,
-    y: 50,
-    width: 20,
-    height: 20,
-    color: '#ffffff',
-    opacity: 100,
-    borderWidth: 0,
-    borderColor: '#ffffff',
-    rotation: 0,
-  };
-  shapeLayers.push(layer);
-  selectLayerById(layer.id);
-  showShapeControls(layer);
-  refreshLayerList();
-  renderLayers();
-}
-
-function showShapeControls(layer) {
-  const panel = document.getElementById('editor-shape-controls');
-  panel.style.display = 'block';
-  document.getElementById('editor-shape-type-label').textContent = layer.label || layer.shapeType;
-  document.getElementById('editor-shape-width').value = layer.width;
-  document.getElementById('editor-shape-height').value = layer.height;
-  document.getElementById('editor-shape-color').value = layer.color;
-  document.getElementById('editor-shape-opacity').value = layer.opacity;
-  document.getElementById('editor-shape-border').value = layer.borderWidth;
-  document.getElementById('editor-shape-bordercolor').value = layer.borderColor;
-  document.getElementById('editor-shape-rotation').value = layer.rotation;
-  document.getElementById('editor-shape-x').value = layer.x;
-  document.getElementById('editor-shape-y').value = layer.y;
-  const xv = document.getElementById('editor-shape-x-val');
-  const yv = document.getElementById('editor-shape-y-val');
-  if (xv) xv.textContent = layer.x + '%';
-  if (yv) yv.textContent = layer.y + '%';
-}
-
-function updateSelectedShape() {
-  const layer = findLayer(selectedLayerId);
-  if (!layer || layer.type !== 'shape') return;
-  layer.width = parseInt(document.getElementById('editor-shape-width').value);
-  layer.height = parseInt(document.getElementById('editor-shape-height').value);
-  layer.color = document.getElementById('editor-shape-color').value;
-  layer.opacity = parseInt(document.getElementById('editor-shape-opacity').value);
-  layer.borderWidth = parseInt(document.getElementById('editor-shape-border').value);
-  layer.borderColor = document.getElementById('editor-shape-bordercolor').value;
-  layer.rotation = parseInt(document.getElementById('editor-shape-rotation').value);
-  layer.x = parseFloat(document.getElementById('editor-shape-x').value);
-  layer.y = parseFloat(document.getElementById('editor-shape-y').value);
-  const xv = document.getElementById('editor-shape-x-val');
-  const yv = document.getElementById('editor-shape-y-val');
-  if (xv) xv.textContent = layer.x + '%';
-  if (yv) yv.textContent = layer.y + '%';
-  refreshLayerList();
-  renderLayers();
-}
-
-// ── Align Layer ───────────────────────────────────────────────────────
-
-function alignLayer(dir) {
-  const layer = findLayer(selectedLayerId);
-  if (!layer) return;
-  switch (dir) {
-    case 'left': layer.x = 0; break;
-    case 'center-h': layer.x = 50; break;
-    case 'right': layer.x = 100; break;
-    case 'top': layer.y = 0; break;
-    case 'center-v': layer.y = 50; break;
-    case 'bottom': layer.y = 100; break;
-  }
-  renderLayers();
-  // Refresh controls for the current tab
-  if (layer.type === 'text') showTextControls(layer);
-  else if (layer.type === 'image') showImageControls(layer);
-  else if (layer.type === 'shape') showShapeControls(layer);
-}
-
-// ── Delete Layer ──────────────────────────────────────────────────────
 
 function deleteSelectedLayer() {
-  if (!selectedLayerId) return;
-  textLayers = textLayers.filter(l => l.id !== selectedLayerId);
-  imageLayers = imageLayers.filter(l => l.id !== selectedLayerId);
-  shapeLayers = shapeLayers.filter(l => l.id !== selectedLayerId);
-  selectedLayerId = null;
+  if (!selectedLayer) return;
+  if (selectedLayer.type === 'text') {
+    textLayers = textLayers.filter(l => l.id !== selectedLayer.id);
+  } else {
+    shapeLayers = shapeLayers.filter(l => l.id !== selectedLayer.id);
+  }
+  selectedLayer = null;
   document.getElementById('editor-text-controls').style.display = 'none';
-  document.getElementById('editor-image-controls').style.display = 'none';
   document.getElementById('editor-shape-controls').style.display = 'none';
-  refreshLayerList();
+  renderLayerList();
   renderLayers();
 }
 
-// ── Layer List Rendering ─────────────────────────────────────────────
+function findLayer(id, type) {
+  if (type === 'text') return textLayers.find(l => l.id === id);
+  return shapeLayers.find(l => l.id === id);
+}
 
-function refreshLayerList() {
-  // Text layers list
-  const textList = document.getElementById('editor-text-layer-list');
-  if (textLayers.length === 0) {
-    textList.innerHTML = '<div class="editor-layer-empty">No text layers. Click "+ Add Text"</div>';
-  } else {
-    textList.innerHTML = textLayers.map(l => `
-      <div class="editor-layer-item${l.id === selectedLayerId ? ' selected' : ''}" onclick="selectLayerById(${l.id})">
-        <span class="editor-layer-icon">T</span>
-        <span class="editor-layer-name">${l.text.slice(0, 20) || 'Text'}</span>
-        <button class="editor-layer-del" onclick="event.stopPropagation();selectedLayerId=${l.id};deleteSelectedLayer()">×</button>
-      </div>
-    `).join('');
-  }
+function getSelectedLayer() {
+  if (!selectedLayer) return null;
+  return findLayer(selectedLayer.id, selectedLayer.type);
+}
 
-  // Image layers list
-  const imgList = document.getElementById('editor-image-layer-list');
-  if (imageLayers.length === 0) {
-    imgList.innerHTML = '<div class="editor-layer-empty">No images. Click "+ Add Image"</div>';
-  } else {
-    imgList.innerHTML = imageLayers.map(l => `
-      <div class="editor-layer-item${l.id === selectedLayerId ? ' selected' : ''}" onclick="selectLayerById(${l.id})">
-        <span class="editor-layer-icon">🖼</span>
-        <span class="editor-layer-name">Image ${l.id}</span>
-        <button class="editor-layer-del" onclick="event.stopPropagation();selectedLayerId=${l.id};deleteSelectedLayer()">×</button>
-      </div>
-    `).join('');
-  }
+// ── Layer List ─────────────────────────────────────────────────────────
+function renderLayerList() {
+  const container = document.getElementById('editor-layer-list');
+  const shapeContainer = document.getElementById('editor-layer-list-shapes');
+  if (!container) return;
 
-  // Shape layers list
-  const shapeList = document.getElementById('editor-shape-layer-list');
-  if (shapeLayers.length === 0) {
-    shapeList.innerHTML = '<div class="editor-layer-empty">No shapes. Pick one below</div>';
-  } else {
-    shapeList.innerHTML = shapeLayers.map(l => {
-      const st = SHAPE_TYPES.find(s => s.id === l.shapeType);
-      return `
-      <div class="editor-layer-item${l.id === selectedLayerId ? ' selected' : ''}" onclick="selectLayerById(${l.id})">
-        <span class="editor-layer-icon">${st ? st.icon : '◻'}</span>
-        <span class="editor-layer-name">${st ? st.label : l.shapeType} ${l.id}</span>
-        <button class="editor-layer-del" onclick="event.stopPropagation();selectedLayerId=${l.id};deleteSelectedLayer()">×</button>
+  const all = [...textLayers.map(l => ({...l, _type: 'text'})), ...shapeLayers.map(l => ({...l, _type: 'shape'}))];
+  const html = all.length === 0 ? '<div class="editor-layer-empty">Add text or shapes</div>' :
+    all.map(l => {
+      const isSelected = selectedLayer && selectedLayer.id === l.id && selectedLayer.type === l._type;
+      const icon = l._type === 'text' ? 'T' : { rectangle:'▬',circle:'●',ellipse:'⬮',triangle:'▲',star:'★',diamond:'◆',arrow:'➤',line:'╌' }[l.shapeType] || '◻';
+      const name = l._type === 'text' ? l.text : l.shapeType;
+      return `<div class="editor-layer-item ${isSelected ? 'selected' : ''}" data-id="${l.id}" data-type="${l._type}" onclick="selectLayer(${l.id},'${l._type}')">
+        <span class="editor-layer-icon">${icon}</span>
+        <span class="editor-layer-name">${escHtml(name.substring(0,20))}</span>
+        <button class="editor-layer-del" onclick="event.stopPropagation();deleteLayerById(${l.id},'${l._type}')">✕</button>
       </div>`;
     }).join('');
-  }
+  container.innerHTML = html;
+  if (shapeContainer) shapeContainer.innerHTML = html;
 }
 
-// ── Render Layers on Preview ─────────────────────────────────────────
+function deleteLayerById(id, type) {
+  selectedLayer = null;
+  if (type === 'text') textLayers = textLayers.filter(l => l.id !== id);
+  else shapeLayers = shapeLayers.filter(l => l.id !== id);
+  document.getElementById('editor-text-controls').style.display = 'none';
+  document.getElementById('editor-shape-controls').style.display = 'none';
+  renderLayerList();
+  renderLayers();
+}
 
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Text Controls ──────────────────────────────────────────────────────
+function showTextControls() {
+  const controls = document.getElementById('editor-text-controls');
+  const shapeControls = document.getElementById('editor-shape-controls');
+  if (shapeControls) shapeControls.style.display = 'none';
+  controls.style.display = 'block';
+  const l = getSelectedLayer();
+  if (!l || l.type !== 'text') return;
+  document.getElementById('editor-text-input').value = l.text;
+  document.getElementById('editor-font').value = l.font;
+  document.getElementById('editor-font-size').value = l.size;
+  document.getElementById('editor-font-color').value = l.color;
+  document.getElementById('editor-text-opacity').value = l.opacity;
+  document.getElementById('editor-text-bgcolor').value = l.bgColor;
+  document.getElementById('editor-text-bgopacity').value = l.bgOpacity;
+  document.getElementById('editor-text-style').value = l.style;
+  document.getElementById('editor-text-spacing').value = l.spacing;
+  document.getElementById('editor-text-bgradius').value = l.borderRadius;
+  document.getElementById('editor-layer-x').value = l.x;
+  document.getElementById('editor-layer-y').value = l.y;
+  document.getElementById('editor-layer-x-val').textContent = l.x + '%';
+  document.getElementById('editor-layer-y-val').textContent = l.y + '%';
+}
+
+function updateSelected() {
+  const l = getSelectedLayer();
+  if (!l) return;
+  if (l.type === 'text') {
+    l.text = document.getElementById('editor-text-input').value;
+    l.font = document.getElementById('editor-font').value;
+    l.size = parseInt(document.getElementById('editor-font-size').value);
+    l.color = document.getElementById('editor-font-color').value;
+    l.opacity = parseInt(document.getElementById('editor-text-opacity').value);
+    l.bgColor = document.getElementById('editor-text-bgcolor').value;
+    l.bgOpacity = parseInt(document.getElementById('editor-text-bgopacity').value);
+    l.style = document.getElementById('editor-text-style').value;
+    l.spacing = parseInt(document.getElementById('editor-text-spacing').value);
+    l.borderRadius = parseInt(document.getElementById('editor-text-bgradius').value);
+    l.x = parseInt(document.getElementById('editor-layer-x').value);
+    l.y = parseInt(document.getElementById('editor-layer-y').value);
+    document.getElementById('editor-layer-x-val').textContent = l.x + '%';
+    document.getElementById('editor-layer-y-val').textContent = l.y + '%';
+  } else {
+    l.width = parseInt(document.getElementById('editor-shape-width').value);
+    l.height = parseInt(document.getElementById('editor-shape-height').value);
+    l.color = document.getElementById('editor-shape-color').value;
+    l.opacity = parseInt(document.getElementById('editor-shape-opacity').value);
+    l.border = parseInt(document.getElementById('editor-shape-border').value);
+    l.borderColor = document.getElementById('editor-shape-bordercolor').value;
+    l.rotation = parseInt(document.getElementById('editor-shape-rotation').value);
+    l.x = parseInt(document.getElementById('editor-layer-x-shape').value);
+    l.y = parseInt(document.getElementById('editor-layer-y-shape').value);
+    document.getElementById('editor-layer-x-val-shape').textContent = l.x + '%';
+    document.getElementById('editor-layer-y-val-shape').textContent = l.y + '%';
+  }
+  renderLayerList();
+  renderLayers();
+}
+
+function alignLayer(dir) {
+  const l = getSelectedLayer();
+  if (!l) return;
+  if (dir === 'left') l.x = 0;
+  else if (dir === 'center-h') l.x = 50;
+  else if (dir === 'right') l.x = 100;
+  else if (dir === 'top') l.y = 0;
+  else if (dir === 'center-v') l.y = 50;
+  else if (dir === 'bottom') l.y = 100;
+  if (l.type === 'text') {
+    document.getElementById('editor-layer-x').value = l.x;
+    document.getElementById('editor-layer-y').value = l.y;
+  } else {
+    document.getElementById('editor-layer-x-shape').value = l.x;
+    document.getElementById('editor-layer-y-shape').value = l.y;
+  }
+  updateSelected();
+}
+
+// ── Shape Controls ─────────────────────────────────────────────────────
+function showShapeControls() {
+  const controls = document.getElementById('editor-shape-controls');
+  const textControls = document.getElementById('editor-text-controls');
+  if (textControls) textControls.style.display = 'none';
+  controls.style.display = 'block';
+  const l = getSelectedLayer();
+  if (!l || l.type !== 'shape') return;
+  document.getElementById('editor-shape-width').value = l.width;
+  document.getElementById('editor-shape-height').value = l.height;
+  document.getElementById('editor-shape-color').value = l.color;
+  document.getElementById('editor-shape-opacity').value = l.opacity;
+  document.getElementById('editor-shape-border').value = l.border;
+  document.getElementById('editor-shape-bordercolor').value = l.borderColor;
+  document.getElementById('editor-shape-rotation').value = l.rotation;
+  document.getElementById('editor-layer-x-shape').value = l.x;
+  document.getElementById('editor-layer-y-shape').value = l.y;
+  document.getElementById('editor-layer-x-val-shape').textContent = l.x + '%';
+  document.getElementById('editor-layer-y-val-shape').textContent = l.y + '%';
+}
+
+// ── Render Layers ──────────────────────────────────────────────────────
 function renderLayers() {
   const container = document.getElementById('editor-layers-container');
-  // Clear existing layer DOM elements (keep any non-layer children)
-  const existing = container.querySelectorAll('.editor-layer-el');
-  existing.forEach(el => el.remove());
+  if (!container) return;
+  container.innerHTML = '';
 
-  const rect = container.getBoundingClientRect();
-  const cw = rect.width;
-  const ch = rect.height;
-
-  // Render text layers
+  // Text layers
   textLayers.forEach(l => {
     const div = document.createElement('div');
-    div.className = 'editor-layer-el' + (l.id === selectedLayerId ? ' selected' : '');
+    div.className = 'editor-layer-el' + (selectedLayer && selectedLayer.id === l.id && selectedLayer.type === 'text' ? ' selected' : '');
     div.dataset.layerId = l.id;
     div.dataset.layerType = 'text';
-    const br = l.borderRadius !== undefined ? l.borderRadius : 4;
+    const bg = l.bgOpacity > 0 ? l.bgColor + Math.round(l.bgOpacity / 100 * 255).toString(16).padStart(2, '0') : 'transparent';
+    const letterSpacing = l.spacing > 0 ? `letter-spacing:${l.spacing}px;` : '';
+    const styleCSS = l.style === 'bold' ? 'font-weight:bold;' :
+      l.style === 'outline' ? `-webkit-text-stroke:1px ${l.color === '#ffffff' ? '#000' : '#fff'};color:${l.color};` :
+      l.style === 'shadow' ? 'text-shadow:3px 3px 6px rgba(0,0,0,0.8);' :
+      l.style === 'glow' ? `text-shadow:0 0 20px ${l.color},0 0 40px ${l.color};` : '';
     div.style.cssText = `
-      position:absolute;
-      left:${l.x}%;
-      top:${l.y}%;
+      position:absolute; left:${l.x}%; top:${l.y}%;
       transform:translate(-50%,-50%);
-      font-family:${l.font};
-      font-size:${l.size}px;
-      color:${l.color};
+      font-family:${l.font}; font-size:${l.size}px; color:${l.color};
       opacity:${l.opacity / 100};
-      text-align:center;
-      pointer-events:auto;
-      cursor:grab;
-      z-index:${10 + l.id};
-      letter-spacing:${l.spacing}px;
-      padding:8px 16px;
-      border-radius:${br}px;
-      max-width:80%;
-      word-break:break-word;
-      ${l.style === 'bold' ? 'font-weight:bold;' : ''}
-      ${l.style === 'outline' ? `-webkit-text-stroke:2px ${l.color === '#ffffff' ? '#000' : '#fff'};` : ''}
-      ${l.style === 'shadow' ? 'text-shadow:3px 3px 6px rgba(0,0,0,0.8);' : ''}
-      ${l.style === 'glow' ? `text-shadow:0 0 20px ${l.color},0 0 40px ${l.color};` : ''}
+      background:${bg};
+      padding:8px 16px; border-radius:${l.borderRadius}px;
+      ${letterSpacing} ${styleCSS}
+      max-width:80%; text-align:center; word-wrap:break-word;
+      pointer-events:auto; cursor:grab;
     `;
-    if (l.bgOpacity > 0) {
-      div.style.background = l.bgColor + Math.round(l.bgOpacity / 100 * 255).toString(16).padStart(2, '0');
-    }
-    div.textContent = l.text || 'Text';
+    div.textContent = l.text;
+    div.onmousedown = (e) => onLayerMouseDown(e, l.id, 'text');
     container.appendChild(div);
   });
 
-  // Render image layers
-  imageLayers.forEach(l => {
-    const img = document.createElement('img');
-    img.className = 'editor-layer-el' + (l.id === selectedLayerId ? ' selected' : '');
-    img.dataset.layerId = l.id;
-    img.dataset.layerType = 'image';
-    img.src = l.src;
-    img.style.cssText = `
-      position:absolute;
-      left:${l.x}%;
-      top:${l.y}%;
-      transform:translate(-50%,-50%);
-      width:${l.size}%;
-      opacity:${l.opacity / 100};
-      pointer-events:auto;
-      cursor:grab;
-      z-index:${5 + l.id};
-      object-fit:contain;
-      border:${l.id === selectedLayerId ? '2px solid var(--primary)' : '2px solid transparent'};
-      border-radius:4px;
-    `;
-    container.appendChild(img);
-  });
-
-  // Render shape layers
-  const SHAPE_SVG = {
-    rectangle: (w, h, c, o, bw, bc) => `<rect x="${bw/2}" y="${bw/2}" width="${w-bw}" height="${h-bw}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}" rx="2"/>`,
-    circle: (w, h, c, o, bw, bc) => `<circle cx="${w/2}" cy="${h/2}" r="${Math.min(w,h)/2-bw/2}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}"/>`,
-    ellipse: (w, h, c, o, bw, bc) => `<ellipse cx="${w/2}" cy="${h/2}" rx="${w/2-bw/2}" ry="${h/2-bw/2}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}"/>`,
-    triangle: (w, h, c, o, bw, bc) => `<polygon points="${w/2},${bw} ${w-bw},${h-bw} ${bw},${h-bw}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}" stroke-linejoin="round"/>`,
-    star: (w, h, c, o, bw, bc) => {
-      const cx = w/2, cy = h/2, outer = Math.min(w,h)/2-bw/2, inner = outer*0.4;
-      const pts = [];
-      for (let i = 0; i < 10; i++) {
-        const r = i % 2 === 0 ? outer : inner;
-        const angle = (i * Math.PI / 5) - Math.PI / 2;
-        pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
-      }
-      return `<polygon points="${pts.join(' ')}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}" stroke-linejoin="round"/>`;
-    },
-    diamond: (w, h, c, o, bw, bc) => `<polygon points="${w/2},${bw} ${w-bw},${h/2} ${w/2},${h-bw} ${bw},${h/2}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}" stroke-linejoin="round"/>`,
-    arrow: (w, h, c, o, bw, bc) => {
-      const bodyW = w * 0.6, headW = w * 0.4, headH = h;
-      return `<line x1="${bw}" y1="${h/2}" x2="${bodyW}" y2="${h/2}" stroke="${c}" stroke-width="${bw||2}" stroke-opacity="${o}"/><polygon points="${bodyW},${bw} ${w-bw},${h/2} ${bodyW},${h-bw}" fill="${c}" fill-opacity="${o}" stroke="${bc}" stroke-width="${bw}" stroke-linejoin="round"/>`;
-    },
-    line: (w, h, c, o, bw, bc) => `<line x1="${bw}" y1="${h/2}" x2="${w-bw}" y2="${h/2}" stroke="${c||bc}" stroke-width="${Math.max(bw||2,2)}" stroke-opacity="${o}" stroke-linecap="round"/>`,
-  };
-
+  // Shape layers
   shapeLayers.forEach(l => {
-    const svgFn = SHAPE_SVG[l.shapeType];
-    if (!svgFn) return;
-    const wPx = Math.round(rect.width * l.width / 100);
-    const hPx = Math.round(rect.height * l.height / 100);
-    const svgContent = svgFn(wPx, hPx, l.color, l.opacity/100, l.borderWidth, l.borderColor);
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', `0 0 ${wPx} ${hPx}`);
-    svg.setAttribute('width', wPx);
-    svg.setAttribute('height', hPx);
-    svg.innerHTML = svgContent;
     const div = document.createElement('div');
-    div.className = 'editor-layer-el' + (l.id === selectedLayerId ? ' selected' : '');
+    div.className = 'editor-layer-el' + (selectedLayer && selectedLayer.id === l.id && selectedLayer.type === 'shape' ? ' selected' : '');
     div.dataset.layerId = l.id;
     div.dataset.layerType = 'shape';
+    const border = l.border > 0 ? `border:${l.border}px solid ${l.borderColor};` : '';
+    const rotation = l.rotation > 0 ? `transform:translate(-50%,-50%) rotate(${l.rotation}deg);` : 'transform:translate(-50%,-50%);';
+    let shapeHtml = '';
+    const w = l.width * 6;
+    const h = l.height * 6;
+    if (l.shapeType === 'rectangle') {
+      shapeHtml = `<div style="width:${w}px;height:${h}px;background:${l.color};opacity:${l.opacity/100};border-radius:3px;${border}"></div>`;
+    } else if (l.shapeType === 'circle') {
+      const r = Math.min(w,h)/2;
+      shapeHtml = `<div style="width:${r*2}px;height:${r*2}px;background:${l.color};opacity:${l.opacity/100};border-radius:50%;${border}"></div>`;
+    } else if (l.shapeType === 'ellipse') {
+      shapeHtml = `<div style="width:${w}px;height:${h*0.6}px;background:${l.color};opacity:${l.opacity/100};border-radius:50%;${border}"></div>`;
+    } else if (l.shapeType === 'triangle') {
+      shapeHtml = `<div style="width:0;height:0;border-left:${w/2}px solid transparent;border-right:${w/2}px solid transparent;border-bottom:${h}px solid ${l.color};opacity:${l.opacity/100};${border.replace('border:','')}"></div>`;
+    } else if (l.shapeType === 'star') {
+      shapeHtml = `<div style="font-size:${Math.max(w,h)}px;line-height:1;color:${l.color};opacity:${l.opacity/100};${border.replace(/border[^;]+;/g,'')}">★</div>`;
+    } else if (l.shapeType === 'diamond') {
+      shapeHtml = `<div style="width:${w}px;height:${h}px;background:${l.color};opacity:${l.opacity/100};transform:rotate(45deg);${border}"></div>`;
+    } else if (l.shapeType === 'arrow') {
+      shapeHtml = `<div style="font-size:${Math.max(w,h)}px;line-height:1;color:${l.color};opacity:${l.opacity/100}">➤</div>`;
+    } else if (l.shapeType === 'line') {
+      shapeHtml = `<div style="width:${w}px;height:3px;background:${l.color};opacity:${l.opacity/100};border-radius:2px;${border}"></div>`;
+    }
     div.style.cssText = `
-      position:absolute;
-      left:${l.x}%;
-      top:${l.y}%;
-      transform:translate(-50%,-50%) rotate(${l.rotation}deg);
-      width:${l.width}%;
-      height:${l.height}%;
-      pointer-events:auto;
-      cursor:grab;
-      z-index:${3 + l.id};
-      overflow:visible;
-      ${l.id === selectedLayerId ? 'outline:2px dashed var(--primary);outline-offset:2px;' : ''}
+      position:absolute; left:${l.x}%; top:${l.y}%;
+      ${rotation}
+      pointer-events:auto; cursor:grab;
     `;
-    div.appendChild(svg);
+    div.innerHTML = shapeHtml;
+    div.onmousedown = (e) => onLayerMouseDown(e, l.id, 'shape');
     container.appendChild(div);
   });
 }
 
-// ── Effects ───────────────────────────────────────────────────────────
+// ── Drag & Drop ────────────────────────────────────────────────────────
+let dragLayer = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
-function applyEffects() {
-  editorEffects.brightness = parseInt(document.getElementById('ef-brightness').value);
-  editorEffects.contrast = parseInt(document.getElementById('ef-contrast').value);
-  editorEffects.saturation = parseInt(document.getElementById('ef-saturation').value);
-  editorEffects.blur = parseInt(document.getElementById('ef-blur').value);
-  editorEffects.grayscale = parseInt(document.getElementById('ef-grayscale').value);
-  editorEffects.sepia = parseInt(document.getElementById('ef-sepia').value);
-
-  document.getElementById('ef-brightness-val').textContent = editorEffects.brightness;
-  document.getElementById('ef-contrast-val').textContent = editorEffects.contrast;
-  document.getElementById('ef-saturation-val').textContent = editorEffects.saturation;
-  document.getElementById('ef-blur-val').textContent = editorEffects.blur;
-  document.getElementById('ef-grayscale-val').textContent = editorEffects.grayscale + '%';
-  document.getElementById('ef-sepia-val').textContent = editorEffects.sepia + '%';
-
-  const video = document.getElementById('editor-video');
-  const b = 1 + editorEffects.brightness / 100;
-  const c = 1 + editorEffects.contrast / 100;
-  const s = 1 + editorEffects.saturation / 100;
-  const blur = editorEffects.blur;
-  const gs = editorEffects.grayscale / 100;
-  const sep = editorEffects.sepia / 100;
-
-  video.style.filter = `brightness(${b}) contrast(${c}) saturate(${s}) blur(${blur}px) grayscale(${gs}) sepia(${sep})`;
+function onLayerMouseDown(e, id, type) {
+  selectLayer(id, type);
+  const rect = e.target.getBoundingClientRect();
+  dragLayer = { id, type };
+  dragOffsetX = (e.clientX - rect.left) / rect.width;
+  dragOffsetY = (e.clientY - rect.top) / rect.height;
+  document.onmousemove = onDragMove;
+  document.onmouseup = onDragEnd;
+  e.preventDefault();
 }
 
-// ── Transition ────────────────────────────────────────────────────────
-
-function onTransitionChange() {
-  editorTransition.type = document.getElementById('editor-transition-type').value;
+function onDragMove(e) {
+  if (!dragLayer) return;
+  const container = document.getElementById('editor-preview-container');
+  if (!container) return;
+  const crect = container.getBoundingClientRect();
+  const px = (e.clientX - crect.left) / crect.width * 100;
+  const py = (e.clientY - crect.top) / crect.height * 100;
+  const l = findLayer(dragLayer.id, dragLayer.type);
+  if (!l) return;
+  l.x = Math.max(0, Math.min(100, px));
+  l.y = Math.max(0, Math.min(100, py));
+  if (l.type === 'text') {
+    document.getElementById('editor-layer-x').value = l.x;
+    document.getElementById('editor-layer-y').value = l.y;
+    document.getElementById('editor-layer-x-val').textContent = l.x + '%';
+    document.getElementById('editor-layer-y-val').textContent = l.y + '%';
+  } else {
+    document.getElementById('editor-layer-x-shape').value = l.x;
+    document.getElementById('editor-layer-y-shape').value = l.y;
+    document.getElementById('editor-layer-x-val-shape').textContent = l.x + '%';
+    document.getElementById('editor-layer-y-val-shape').textContent = l.y + '%';
+  }
+  renderLayers();
 }
 
-// ── Frame Preset & Freeze Frame ─────────────────────────────────────
-
-function onFramePresetChange() {
-  editorFramePreset = document.getElementById('editor-frame-preset').value;
+function onDragEnd() {
+  dragLayer = null;
+  document.onmousemove = null;
+  document.onmouseup = null;
 }
 
-function onFreezeChange() {
-  editorFreezeFrame = {
-    enabled: document.getElementById('editor-freeze-enable').checked,
+// ── Freeze Frame ───────────────────────────────────────────────────────
+function updateFreeze() {
+  // Just update the freeze frame preview (no preview needed, values read on export)
+  renderLayers();
+}
+
+function getFreezeConfig() {
+  const enabled = document.getElementById('editor-freeze-enable').checked;
+  if (!enabled) return null;
+  return {
     time: parseFloat(document.getElementById('editor-freeze-time').value) || 1,
     duration: parseInt(document.getElementById('editor-freeze-duration').value) || 3,
     title: document.getElementById('editor-freeze-title').value || '',
@@ -656,204 +393,87 @@ function onFreezeChange() {
   };
 }
 
-// ── Timeline Segments ─────────────────────────────────────────────────
-
-function initSegments() {
-  if (editorDuration <= 0) return;
-  segments = [{ start: 0, end: editorDuration }];
-  selectedSegmentIdx = 0;
-  drawTimelineCanvas();
-}
-
-function splitAtPlayhead() {
-  if (editorDuration <= 0 || segments.length === 0) return;
-  const time = editorPlayheadPos;
-  let splitIdx = -1;
-  for (let i = 0; i < segments.length; i++) {
-    if (time > segments[i].start && time < segments[i].end) {
-      splitIdx = i;
-      break;
-    }
-  }
-  if (splitIdx === -1) { showToast('Playhead not inside any segment'); return; }
-  const seg = segments[splitIdx];
-  const newSeg = { start: time, end: seg.end };
-  seg.end = time;
-  segments.splice(splitIdx + 1, 0, newSeg);
-  selectedSegmentIdx = splitIdx + 1;
-  drawTimelineCanvas();
-  showToast('Segment split at ' + formatTime(time));
-}
-
-function removeSelectedSegment() {
-  if (segments.length <= 1) { showToast('Cannot remove the only segment'); return; }
-  if (selectedSegmentIdx < 0 || selectedSegmentIdx >= segments.length) return;
-  segments.splice(selectedSegmentIdx, 1);
-  selectedSegmentIdx = Math.min(selectedSegmentIdx, segments.length - 1);
-  drawTimelineCanvas();
-}
-
-// ── Video Loading ────────────────────────────────────────────────────
-
-function setupEditorListeners() {
-  const video = document.getElementById('editor-video');
-  if (!video) return;
-  video.onloadedmetadata = onVideoLoaded;
-  video.ontimeupdate = onVideoTimeUpdate;
-  video.onplay = () => { editorIsPlaying = true; startPlayheadAnimation(); };
-  video.onpause = () => { editorIsPlaying = false; stopPlayheadAnimation(); };
-  video.onseeked = updatePlayheadPosition;
-  video.onerror = () => {
-    showToast('⚠️ Video error: format tidak didukung atau URL bermasalah');
-    if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
-  };
-
-  const track = document.getElementById('editor-timeline-track');
-  if (!track) return;
-  track.onmousedown = onTimelineMouseDown;
-
-  const bgmVol = document.getElementById('editor-bgm-volume');
-  if (bgmVol) {
-    bgmVol.oninput = () => {
-      const lbl = document.getElementById('editor-bgm-volume-label');
-      if (lbl) lbl.textContent = bgmVol.value + '%';
-    };
-  }
-}
-
-function setupTimelineMouse() {
-  // Combined document-level mouse handlers (layers + timeline)
-  document.onmousemove = (e) => {
-    onTimelineMouseMove(e);
-    onLayerMouseMove(e);
-  };
-  document.onmouseup = (e) => {
-    onTimelineMouseUp(e);
-    onLayerMouseUp(e);
-  };
-}
-
-function setupKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-    if (e.key === ' ') {
-      e.preventDefault();
-      const video = document.getElementById('editor-video');
-      if (video.paused) video.play(); else video.pause();
-    }
-    if (e.key === 's' || e.key === 'S') {
-      e.preventDefault();
-      splitAtPlayhead();
-    }
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      if (selectedLayerId) { deleteSelectedLayer(); }
-    }
-  });
-}
-
-function initEditorFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const url = params.get('url');
-  if (url) {
-    document.getElementById('editor-video-url').value = url;
-    loadEditorVideo();
-  }
-}
-
+// ── Video Loading ──────────────────────────────────────────────────────
 function loadEditorVideo() {
   const url = document.getElementById('editor-video-url').value.trim();
   if (!url) { showToast('Masukkan URL video'); return; }
   const video = document.getElementById('editor-video');
-  if (!video) { showToast('Video element not found'); return; }
+  if (!video) return;
   showToast('Loading video...');
   video.src = url;
   video.load();
-  // Timeout: if video doesn't load metadata within 30s, show error
-  if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
-  window._videoLoadTimeout = setTimeout(() => {
-    if (video.readyState < 1) {
-      showToast('⚠️ Video gagal load. Cek URL atau coba video lain.');
-    }
-  }, 30000);
 }
 
 function loadEditorFile(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const url = URL.createObjectURL(file);
-  document.getElementById('editor-video-url').value = file.name;
   const video = document.getElementById('editor-video');
-  video.src = url;
+  if (!video) return;
+  video.src = URL.createObjectURL(file);
   video.load();
 }
 
 function onVideoLoaded() {
   const video = document.getElementById('editor-video');
+  if (!video) return;
   editorDuration = video.duration || 0;
-  // Ensure video fills container
-  video.style.position = 'absolute';
-  video.style.inset = '0';
-  video.style.width = '100%';
-  video.style.height = '100%';
-  video.style.objectFit = 'contain';
-  video.style.display = 'block';
-  document.getElementById('editor-time-duration').textContent = formatTime(editorDuration);
-  document.getElementById('editor-timeline-empty').style.display = 'none';
+  const durEl = document.getElementById('editor-time-duration');
+  if (durEl) durEl.textContent = formatTime(editorDuration);
+  const emptyEl = document.getElementById('editor-timeline-empty');
+  if (emptyEl) emptyEl.style.display = 'none';
   initSegments();
   renderTimeline();
   drawTimelineCanvas();
-  loadWaveform();
-  // Reset effects
-  document.getElementById('ef-brightness').value = 0;
-  document.getElementById('ef-contrast').value = 0;
-  document.getElementById('ef-saturation').value = 0;
-  document.getElementById('ef-blur').value = 0;
-  document.getElementById('ef-grayscale').value = 0;
-  document.getElementById('ef-sepia').value = 0;
-  applyEffects();
-}
-
-function loadWaveform() {
-  const videoUrl = document.getElementById('editor-video-url').value.trim();
-  if (!videoUrl || editorWaveformLoading) return;
-  editorWaveformLoading = true;
-  editorWaveformData = null;
-
-  fetch('/api/video/waveform', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ videoUrl }),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.success && data.points) {
-        editorWaveformData = data.points;
-        drawTimelineCanvas();
-      }
-    })
-    .catch(() => {
-      // Waveform is optional - silently fail
-    })
-    .finally(() => { editorWaveformLoading = false; });
 }
 
 function onVideoTimeUpdate() {
   const video = document.getElementById('editor-video');
-  editorPlayheadPos = video.currentTime;
-  document.getElementById('editor-time-current').textContent = formatTime(editorPlayheadPos);
+  if (!video) return;
+  const cur = document.getElementById('editor-time-current');
+  if (cur) cur.textContent = formatTime(video.currentTime);
   updatePlayheadPosition();
 }
 
 function formatTime(s) {
+  if (!s || isNaN(s)) return '0:00';
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, '0')}`;
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
 
-// ── Timeline Canvas ──────────────────────────────────────────────────
+// ── Timeline ───────────────────────────────────────────────────────────
+function initSegments() {
+  if (!editorSegments.length) {
+    editorSegments = [{ start: 0, end: editorDuration }];
+  }
+  editorSelectedSegment = 0;
+}
+
+function splitAtPlayhead() {
+  const video = document.getElementById('editor-video');
+  if (!video) return;
+  const t = video.currentTime;
+  const idx = editorSegments.findIndex(s => t >= s.start && t < s.end);
+  if (idx < 0) return;
+  const s = editorSegments[idx];
+  if (Math.abs(t - s.start) < 0.5 || Math.abs(t - s.end) < 0.5) return;
+  editorSegments.splice(idx, 1, { start: s.start, end: t }, { start: t, end: s.end });
+  renderTimeline();
+  drawTimelineCanvas();
+}
+
+function removeSelectedSegment() {
+  if (editorSegments.length <= 1) return;
+  editorSegments.splice(editorSelectedSegment, 1);
+  if (editorSelectedSegment >= editorSegments.length) editorSelectedSegment = editorSegments.length - 1;
+  renderTimeline();
+  drawTimelineCanvas();
+}
 
 function getPixelsPerSecond() {
-  return PX_PER_SECOND_BASE * editorZoom;
+  const track = document.getElementById('editor-timeline-track');
+  const w = track ? track.clientWidth - 40 : 800;
+  return (w / editorDuration) * editorZoom;
 }
 
 function getTimelineWidth() {
@@ -861,299 +481,149 @@ function getTimelineWidth() {
 }
 
 function renderTimeline() {
-  const canvas = document.getElementById('editor-timeline-canvas');
   const track = document.getElementById('editor-timeline-track');
-  const w = Math.max(getTimelineWidth(), track.clientWidth);
-  const h = 80;
-  canvas.width = w * (window.devicePixelRatio || 1);
-  canvas.height = h * (window.devicePixelRatio || 1);
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  canvas.getContext('2d').scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  if (!track) return;
+  const pp = getPixelsPerSecond();
+  // Remove old segments
+  track.querySelectorAll('.editor-timeline-segment').forEach(el => el.remove());
+  // Remove old trim handles
+  track.querySelectorAll('.editor-trim-handle').forEach(el => el.remove());
+  editorSegments.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'editor-timeline-segment' + (i === editorSelectedSegment ? ' selected' : '');
+    div.style.cssText = `position:absolute;left:${s.start*pp+20}px;width:${(s.end-s.start)*pp}px;top:18px;height:44px;background:${i===editorSelectedSegment?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.1)'};border-radius:4px;cursor:pointer;`;
+    div.onclick = () => { editorSelectedSegment = i; renderTimeline(); drawTimelineCanvas(); };
+    track.appendChild(div);
+  });
 }
 
 function drawTimelineCanvas() {
   const canvas = document.getElementById('editor-timeline-canvas');
+  if (!canvas) return;
+  const track = document.getElementById('editor-timeline-track');
+  const w = track ? track.clientWidth : 800;
+  const h = 80;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext('2d');
-  const w = canvas.width / (window.devicePixelRatio || 1);
-  const h = canvas.height / (window.devicePixelRatio || 1);
-  const pps = getPixelsPerSecond();
+  const pp = getPixelsPerSecond();
 
   ctx.clearRect(0, 0, w, h);
 
-  // Background
-  ctx.fillStyle = '#1b2838';
-  ctx.fillRect(0, 0, w, h);
-
-  const barY = 20;
-  const barH = 40;
-
-  // Draw each segment
-  if (segments.length === 0) initSegments();
-  segments.forEach((seg, idx) => {
-    const sx = seg.start * pps;
-    const ex = seg.end * pps;
-    const sw = ex - sx;
-
-    const isSelected = idx === selectedSegmentIdx;
-
-    // Segment background
-    ctx.fillStyle = isSelected ? '#1a3050' : '#2a3a4a';
-    ctx.fillRect(sx, barY, sw, barH);
-
-    // Segment gradient bar
-    const grad = ctx.createLinearGradient(sx, barY, ex, barY);
-    grad.addColorStop(0, isSelected ? '#0088ff' : '#0050ff');
-    grad.addColorStop(1, isSelected ? '#44eeff' : '#00d4ff');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.roundRect(sx + 2, barY + 2, sw - 4, barH - 4, 3);
-    ctx.fill();
-
-    // Segment label
-    ctx.fillStyle = '#fff';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(formatTime(seg.start) + ' - ' + formatTime(seg.end), sx + sw / 2, barY + barH / 2 + 4);
-
-    // Split line between segments
-    if (idx > 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(sx, barY);
-      ctx.lineTo(sx, barY + barH);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-  });
-
-  // Time ruler
-  ctx.fillStyle = '#8899aa';
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'center';
-  const step = Math.max(1, Math.floor(30 / editorZoom / 5) * 5);
-  for (let t = 0; t <= editorDuration; t += step) {
-    const x = t * pps;
-    ctx.fillRect(x, 0, 1, 8);
-    ctx.fillText(formatTime(t), x, 16);
+  // Draw waveform-style bars
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  for (let x = 0; x < w; x += 4) {
+    const bar = 10 + Math.sin(x * 0.1) * 8 + Math.cos(x * 0.05) * 4;
+    ctx.fillRect(x, 40 - bar / 2, 2, bar);
   }
 
-  // Waveform (only on first segment area for simplicity)
-  if (editorWaveformData && editorWaveformData.length > 0 && segments.length > 0) {
-    const firstSeg = segments[0];
-    const sx = firstSeg.start * pps;
-    const ex = firstSeg.end * pps;
-    const segDur = firstSeg.end - firstSeg.start;
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.2)';
-    const waveformCount = Math.min(editorWaveformData.length, Math.floor((ex - sx) / 3));
-    const waveformStep = Math.max(1, Math.floor(editorWaveformData.length / waveformCount));
-    for (let i = 0; i < waveformCount; i++) {
-      const idx = Math.min(Math.floor(i * waveformStep), editorWaveformData.length - 1);
-      const val = editorWaveformData[idx] || 0;
-      const hw = Math.max(2, val * 32);
-      const x = sx + (ex - sx) * i / waveformCount;
-      ctx.fillRect(x, 40 - hw / 2, Math.max(2, (ex - sx) / waveformCount - 1), hw);
-    }
-  } else if (segments.length > 0) {
-    const sx = segments[0].start * pps;
-    const ex = segments[0].end * pps;
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    const barCount = 60;
-    for (let i = 0; i < barCount; i++) {
-      const hw = 4 + Math.random() * 16;
-      ctx.fillRect(sx + (ex - sx) * i / barCount, 40 - hw / 2, Math.max(2, (ex - sx) / barCount - 1), hw);
-    }
-    if (editorWaveformLoading) {
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Loading waveform...', w / 2, 50);
-    }
-  }
-
-  // Playhead
-  const playheadX = editorPlayheadPos * pps;
-  ctx.strokeStyle = '#ff3366';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(playheadX, 0);
-  ctx.lineTo(playheadX, h);
-  ctx.stroke();
-
-  // Time at playhead
-  ctx.fillStyle = '#ff3366';
+  // Draw time ruler
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '10px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(formatTime(editorPlayheadPos), playheadX, h - 4);
+  const interval = Math.max(1, Math.floor(5 / editorZoom));
+  for (let t = 0; t <= editorDuration; t += interval) {
+    const x = t * pp + 20;
+    ctx.fillText(formatTime(t), x, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(x, 18, 1, 60);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  }
+}
+
+let playheadAnimId = null;
+
+function startPlayheadAnim() {
+  stopPlayheadAnim();
+  function tick() {
+    updatePlayheadPosition();
+    playheadAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function stopPlayheadAnim() {
+  if (playheadAnimId) { cancelAnimationFrame(playheadAnimId); playheadAnimId = null; }
 }
 
 function updatePlayheadPosition() {
-  const pps = getPixelsPerSecond();
-  const x = editorPlayheadPos * pps;
-  const playhead = document.getElementById('editor-playhead');
-  playhead.style.left = x + 'px';
-  playhead.style.display = editorDuration > 0 ? 'block' : 'none';
-  drawTimelineCanvas();
-}
-
-function startPlayheadAnimation() {
-  stopPlayheadAnimation();
-  editorRAF = requestAnimationFrame(animatePlayhead);
-}
-
-function stopPlayheadAnimation() {
-  if (editorRAF) { cancelAnimationFrame(editorRAF); editorRAF = null; }
-}
-
-function animatePlayhead() {
-  if (!editorIsPlaying) return;
   const video = document.getElementById('editor-video');
-  editorPlayheadPos = video.currentTime;
-  updatePlayheadPosition();
-  editorRAF = requestAnimationFrame(animatePlayhead);
-}
-
-// ── Timeline Interactions ────────────────────────────────────────────
-
-function onTimelineMouseDown(e) {
-  const track = document.getElementById('editor-timeline-track');
-  const rect = track.getBoundingClientRect();
-  const x = e.clientX - rect.left + track.scrollLeft;
-  const pps = getPixelsPerSecond();
-  const time = x / pps;
-  if (editorDuration === 0) return;
-
-  // Check if clicking on a segment to select it
-  for (let i = segments.length - 1; i >= 0; i--) {
-    if (time >= segments[i].start && time <= segments[i].end) {
-      selectedSegmentIdx = i;
-      break;
-    }
-  }
-
-  editorPlayheadPos = Math.max(0, Math.min(time, editorDuration));
-  document.getElementById('editor-video').currentTime = editorPlayheadPos;
-  updatePlayheadPosition();
-  editorIsDraggingPlayhead = true;
-  drawTimelineCanvas();
-}
-
-function onTimelineMouseMove(e) {
-  const track = document.getElementById('editor-timeline-track');
-  const rect = track.getBoundingClientRect();
-  const pps = getPixelsPerSecond();
-  const x = e.clientX - rect.left + track.scrollLeft;
-  const time = Math.max(0, Math.min(x / pps, editorDuration));
-
-  if (editorIsDraggingPlayhead) {
-    // Check which segment this time falls in
-    for (let i = 0; i < segments.length; i++) {
-      if (time >= segments[i].start && time <= segments[i].end) {
-        if (selectedSegmentIdx !== i) {
-          selectedSegmentIdx = i;
-          drawTimelineCanvas();
-        }
-        break;
-      }
-    }
-    editorPlayheadPos = time;
-    document.getElementById('editor-video').currentTime = editorPlayheadPos;
-    document.getElementById('editor-time-current').textContent = formatTime(editorPlayheadPos);
-    updatePlayheadPosition();
-    drawTimelineCanvas();
-  }
-}
-
-function onTimelineMouseUp(e) {
-  editorIsDraggingPlayhead = false;
+  const playhead = document.getElementById('editor-playhead');
+  if (!video || !playhead) return;
+  const pp = getPixelsPerSecond();
+  playhead.style.left = (video.currentTime * pp + 18) + 'px';
+  playhead.style.display = 'block';
 }
 
 function zoomTimeline(dir) {
-  editorZoom = Math.max(0.25, Math.min(4, editorZoom * (dir > 0 ? 1.5 : 0.67)));
-  document.getElementById('editor-zoom-level').textContent = editorZoom.toFixed(1) + 'x';
+  editorZoom = Math.max(0.25, Math.min(10, editorZoom + dir * 0.25));
+  document.getElementById('editor-zoom-level').textContent = editorZoom.toFixed(2) + 'x';
   renderTimeline();
-  updatePlayheadPosition();
   drawTimelineCanvas();
+  updatePlayheadPosition();
 }
 
-function updateTrimSliders() {
-  // No longer used - replaced by segments
+// ── Timeline Mouse ─────────────────────────────────────────────────────
+let tlDragging = false;
+function onTimelineMouseDown(e) {
+  const track = document.getElementById('editor-timeline-track');
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const pp = getPixelsPerSecond();
+  const t = Math.max(0, Math.min(editorDuration, (e.clientX - rect.left - 18) / pp));
+  const video = document.getElementById('editor-video');
+  if (video) video.currentTime = t;
+  tlDragging = true;
+  document.onmousemove = onTimelineMouseMove;
+  document.onmouseup = onTimelineMouseUp;
 }
 
-function updateTrimDisplay() {
-  // No longer used - replaced by segments
+function onTimelineMouseMove(e) {
+  if (!tlDragging) return;
+  const track = document.getElementById('editor-timeline-track');
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const pp = getPixelsPerSecond();
+  const t = Math.max(0, Math.min(editorDuration, (e.clientX - rect.left - 18) / pp));
+  const video = document.getElementById('editor-video');
+  if (video) video.currentTime = t;
 }
 
-// ── Export ────────────────────────────────────────────────────────────
+function onTimelineMouseUp() {
+  tlDragging = false;
+  document.onmousemove = null;
+  document.onmouseup = null;
+}
 
+// ── Export ─────────────────────────────────────────────────────────────
 async function exportEditedVideo() {
-  const videoUrl = document.getElementById('editor-video-url').value.trim();
-  if (!videoUrl) { showToast('Load video dulu'); return; }
+  const video = document.getElementById('editor-video');
+  const url = document.getElementById('editor-video-url').value.trim();
+  if (!video || !video.src) { showToast('Load video dulu'); return; }
 
   const progress = document.getElementById('editor-export-progress');
-  progress.style.display = 'block';
-  const spinner = progress.querySelector('.te-spinner');
-  const result = progress.querySelector('.editor-export-result');
-  spinner.style.display = 'flex';
-  result.style.display = 'none';
-
-  // Build segments payload
-  const segPayload = segments.map((seg, idx) => {
-    const transition = idx > 0 ? editorTransition : { type: 'none', duration: 0 };
-    return {
-      start: seg.start,
-      end: seg.end,
-      transition: idx > 0 ? transition : null,
-    };
-  });
+  const result = document.getElementById('editor-export-result');
+  if (progress) progress.style.display = 'block';
+  if (result) result.style.display = 'none';
 
   const payload = {
-    videoUrl,
-    segments: segPayload,
+    videoUrl: url.startsWith('http') ? url : '',
+    segments: editorSegments,
     textLayers: textLayers.map(l => ({
-      text: l.text,
-      font: l.font,
-      size: l.size,
-      color: l.color,
-      opacity: l.opacity / 100,
-      bgColor: l.bgColor,
-      bgOpacity: l.bgOpacity / 100,
-      style: l.style,
-      spacing: l.spacing,
-      borderRadius: l.borderRadius !== undefined ? l.borderRadius : 0,
-      x: l.x / 100,
-      y: l.y / 100,
-    })),
-    imageLayers: imageLayers.map(l => ({
-      src: l.src,
-      x: l.x / 100,
-      y: l.y / 100,
-      size: l.size / 100,
-      opacity: l.opacity / 100,
+      text: l.text, font: l.font, size: l.size,
+      color: l.color, opacity: l.opacity,
+      bgColor: l.bgColor, bgOpacity: l.bgOpacity, borderRadius: l.borderRadius,
+      x: l.x, y: l.y, style: l.style, spacing: l.spacing,
     })),
     shapeLayers: shapeLayers.map(l => ({
-      shapeType: l.shapeType,
-      x: l.x / 100,
-      y: l.y / 100,
-      width: l.width / 100,
-      height: l.height / 100,
-      color: l.color,
-      opacity: l.opacity / 100,
-      borderWidth: l.borderWidth,
-      borderColor: l.borderColor,
-      rotation: l.rotation,
+      type: l.shapeType, color: l.color, opacity: l.opacity,
+      width: l.width, height: l.height,
+      border: l.border, borderColor: l.borderColor, rotation: l.rotation,
+      x: l.x, y: l.y,
     })),
-    effects: editorEffects,
-    transition: editorTransition,
-    aspectRatio: editorFramePreset,
-    freezeFrame: editorFreezeFrame,
-    introDuration: parseInt(document.getElementById('editor-intro-duration').value) || 3,
-    introVideo: document.getElementById('editor-intro-select')?.value || '',
-    template: document.getElementById('editor-template-select').value || '',
-    bgm: document.getElementById('editor-bgm-select').value || '',
-    bgmVolume: parseInt(document.getElementById('editor-bgm-volume').value) / 100,
+    freezeFrame: getFreezeConfig(),
+    aspectRatio: document.getElementById('editor-frame-preset').value,
+    trimStart: editorSegments.length > 0 ? editorSegments[0].start : 0,
+    trimEnd: editorSegments.length > 0 ? editorSegments[editorSegments.length - 1].end : editorDuration,
   };
 
   try {
@@ -1163,95 +633,38 @@ async function exportEditedVideo() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    spinner.style.display = 'none';
-    result.style.display = 'block';
-
     if (data.success) {
-      result.innerHTML = `
-        <div style="color:var(--success);margin-bottom:8px;">✅ Video siap!</div>
-        <a href="${data.outputPath}" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;">Download</a>
-        <button class="btn btn-secondary btn-sm" onclick="previewEditedVideo('${data.outputPath}')">Preview</button>`;
+      result.innerHTML = `<a href="${data.outputPath}" target="_blank" class="btn btn-primary btn-sm">⬇ Download Video</a> <span style="font-size:12px;color:var(--text-dim);margin-left:8px;">${data.duration ? formatTime(data.duration) : ''}</span>`;
+      result.style.display = 'flex';
+      previewEditedVideo(data.outputPath);
     } else {
-      result.innerHTML = `<div style="color:var(--danger);">❌ ${data.error || 'Gagal'}</div>`;
+      result.innerHTML = `<span style="color:var(--danger);">Error: ${data.error}</span>`;
+      result.style.display = 'flex';
     }
   } catch (e) {
-    spinner.style.display = 'none';
-    result.style.display = 'block';
-    result.innerHTML = `<div style="color:var(--danger);">❌ ${e.message}</div>`;
+    result.innerHTML = `<span style="color:var(--danger);">Error: ${e.message}</span>`;
+    result.style.display = 'flex';
   }
 }
 
 function previewEditedVideo(path) {
   const video = document.getElementById('editor-video');
   if (!video) return;
-  if (path.startsWith('/')) path = window.location.origin + path;
-  if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
   video.src = path;
   video.load();
   video.play().catch(() => {});
-  document.getElementById('editor-video-url').value = path;
-  showToast('Preview ready');
 }
 
 async function quickPreview() {
-  const videoUrl = document.getElementById('editor-video-url').value.trim();
-  if (!videoUrl) { showToast('Load video dulu'); return; }
-
-  const btn = document.querySelector('[onclick="quickPreview()"]');
-  if (!btn) return;
-  const orig = btn.textContent;
-  btn.textContent = 'Previewing...';
-  btn.disabled = true;
-
-  const introDurEl = document.getElementById('editor-intro-duration');
-  const tmplEl = document.getElementById('editor-template-select');
-  const title = (textLayers[0] && textLayers[0].text) || '';
-  const titleColor = (textLayers[0] && textLayers[0].color) || '#ffffff';
-  const titleSize = (textLayers[0] && textLayers[0].size) || 48;
-
-  try {
-    const res = await fetch('/api/video/preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        videoUrl,
-        title,
-        introDuration: introDurEl ? parseInt(introDurEl.value) : 3,
-        template: tmplEl ? tmplEl.value : '',
-        titleColor,
-        titleSize,
-      }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      previewEditedVideo(data.outputPath);
-    } else {
-      showToast('Preview failed: ' + (data.error || 'Unknown'));
-    }
-  } catch (e) {
-    showToast('Preview error: ' + e.message);
-  } finally {
-    btn.textContent = orig;
-    btn.disabled = false;
-  }
-}
-
-// ── Canvas roundRect polyfill ─────────────────────────────────────────
-
-if (!CanvasRenderingContext2D.prototype.roundRect) {
-  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
-    if (r > w / 2) r = w / 2;
-    if (r > h / 2) r = h / 2;
-    this.moveTo(x + r, y);
-    this.lineTo(x + w - r, y);
-    this.quadraticCurveTo(x + w, y, x + w, y + r);
-    this.lineTo(x + w, y + h - r);
-    this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    this.lineTo(x + r, y + h);
-    this.quadraticCurveTo(x, y + h, x, y + h - r);
-    this.lineTo(x, y + r);
-    this.quadraticCurveTo(x, y, x + r, y);
-    this.closePath();
-    return this;
-  };
+  const video = document.getElementById('editor-video');
+  if (!video) return;
+  // Truncate to first 5 seconds for quick preview
+  const origEnd = editorDuration;
+  editorDuration = Math.min(5, origEnd);
+  initSegments();
+  renderTimeline();
+  drawTimelineCanvas();
+  video.currentTime = 0;
+  video.play().catch(() => {});
+  showToast('Preview mode: first 5s');
 }
