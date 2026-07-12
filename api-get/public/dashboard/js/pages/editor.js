@@ -64,9 +64,6 @@ function initEditor() {
   initEditorFromUrl();
   setupKeyboardShortcuts();
   initLayerDrag();
-
-  // Set default preview canvas aspect ratio (9:16 TikTok)
-  setPreviewAspect('9:16');
 }
 
 // ── Initialization helpers ────────────────────────────────────────────
@@ -680,7 +677,6 @@ function onTransitionChange() {
 
 function onFramePresetChange() {
   editorFramePreset = document.getElementById('editor-frame-preset').value;
-  setPreviewAspect(editorFramePreset);
 }
 
 function onFreezeChange() {
@@ -824,26 +820,6 @@ function loadEditorFile(event) {
   video.load();
 }
 
-function setPreviewAspect(ratioStr) {
-  const container = document.getElementById('editor-preview-container');
-  if (!container) return;
-  if (!ratioStr || ratioStr === 'none' || ratioStr === 'auto') {
-    container.style.removeProperty('aspect-ratio');
-    container.style.removeProperty('width');
-    container.style.removeProperty('height');
-    container.style.removeProperty('max-width');
-    container.style.removeProperty('max-height');
-    return;
-  }
-  const parts = ratioStr.split(':').map(Number);
-  if (!parts[0] || !parts[1]) return;
-  container.style.aspectRatio = `${parts[0]} / ${parts[1]}`;
-  container.style.maxWidth = '100%';
-  container.style.maxHeight = '100%';
-  container.style.width = 'auto';
-  container.style.height = 'auto';
-}
-
 function onVideoLoaded() {
   try {
     const video = document.getElementById('editor-video');
@@ -858,16 +834,6 @@ function onVideoLoaded() {
     drawTimelineCanvas();
     loadWaveform();
     resetEffects();
-
-    // Set preview canvas to match video aspect ratio
-    if (video.videoWidth && video.videoHeight) {
-      const ar = `${video.videoWidth}:${video.videoHeight}`;
-      if (editorFramePreset && editorFramePreset !== 'none') {
-        setPreviewAspect(editorFramePreset);
-      } else {
-        setPreviewAspect(ar);
-      }
-    }
   } catch(e) {
     console.error('onVideoLoaded error:', e);
   }
