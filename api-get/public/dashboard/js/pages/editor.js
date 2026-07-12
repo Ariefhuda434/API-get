@@ -48,11 +48,13 @@ const PX_PER_SECOND_BASE = 80;
 const PADDING = 60;
 
 function initEditor() {
+  // Reset state
   selectedLayerId = null;
   isDraggingLayer = false;
 
   const video = document.getElementById('editor-video');
   if (video) {
+    // Stop any playing video before re-init
     video.pause();
   }
 
@@ -278,48 +280,23 @@ function addImageLayer(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    addImageLayerBySrc(e.target.result);
+    const layer = {
+      id: layerIdCounter++,
+      type: 'image',
+      src: e.target.result,
+      x: 50,
+      y: 50,
+      size: 100,
+      opacity: 100,
+    };
+    imageLayers.push(layer);
+    selectLayerById(layer.id);
+    showImageControls(layer);
+    refreshLayerList();
+    renderLayers();
   };
   reader.readAsDataURL(file);
   event.target.value = '';
-}
-
-function addImageLayerBySrc(src) {
-  const layer = {
-    id: layerIdCounter++,
-    type: 'image',
-    src: src,
-    x: 50,
-    y: 50,
-    size: 100,
-    opacity: 100,
-  };
-  imageLayers.push(layer);
-  selectLayerById(layer.id);
-  showImageControls(layer);
-  refreshLayerList();
-  renderLayers();
-}
-
-function loadServerImages() {
-  fetch('/api/images')
-    .then(r => r.json())
-    .then(data => {
-      const container = document.getElementById('editor-server-image-list');
-      if (!container) return;
-      const images = data.images || [];
-      if (!images.length) {
-        container.innerHTML = '<div class="editor-layer-empty">No images in server folder</div>';
-        return;
-      }
-      container.innerHTML = images.map(name => `
-        <div class="editor-server-image" onclick="addImageLayerBySrc('/ss/${name}')" title="${name}">
-          <img src="/ss/${name}" loading="lazy" onerror="this.parentElement.style.display='none'">
-          <span>${name}</span>
-        </div>
-      `).join('');
-    })
-    .catch(() => {});
 }
 
 function showImageControls(layer) {
@@ -503,7 +480,7 @@ function refreshLayerList() {
 
 function renderLayers() {
   const container = document.getElementById('editor-layers-container');
-  if (!container) return;
+  // Clear existing layer DOM elements (keep any non-layer children)
   const existing = container.querySelectorAll('.editor-layer-el');
   existing.forEach(el => el.remove());
 
@@ -631,32 +608,22 @@ function renderLayers() {
 
 // ── Effects ───────────────────────────────────────────────────────────
 
-function safeVal(id, fallback = 0) {
-  const el = document.getElementById(id);
-  return el ? parseInt(el.value) : fallback;
-}
-function safeText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
 function applyEffects() {
-  editorEffects.brightness = safeVal('ef-brightness');
-  editorEffects.contrast = safeVal('ef-contrast');
-  editorEffects.saturation = safeVal('ef-saturation');
-  editorEffects.blur = safeVal('ef-blur');
-  editorEffects.grayscale = safeVal('ef-grayscale');
-  editorEffects.sepia = safeVal('ef-sepia');
+  editorEffects.brightness = parseInt(document.getElementById('ef-brightness').value);
+  editorEffects.contrast = parseInt(document.getElementById('ef-contrast').value);
+  editorEffects.saturation = parseInt(document.getElementById('ef-saturation').value);
+  editorEffects.blur = parseInt(document.getElementById('ef-blur').value);
+  editorEffects.grayscale = parseInt(document.getElementById('ef-grayscale').value);
+  editorEffects.sepia = parseInt(document.getElementById('ef-sepia').value);
 
-  safeText('ef-brightness-val', editorEffects.brightness);
-  safeText('ef-contrast-val', editorEffects.contrast);
-  safeText('ef-saturation-val', editorEffects.saturation);
-  safeText('ef-blur-val', editorEffects.blur);
-  safeText('ef-grayscale-val', editorEffects.grayscale + '%');
-  safeText('ef-sepia-val', editorEffects.sepia + '%');
+  document.getElementById('ef-brightness-val').textContent = editorEffects.brightness;
+  document.getElementById('ef-contrast-val').textContent = editorEffects.contrast;
+  document.getElementById('ef-saturation-val').textContent = editorEffects.saturation;
+  document.getElementById('ef-blur-val').textContent = editorEffects.blur;
+  document.getElementById('ef-grayscale-val').textContent = editorEffects.grayscale + '%';
+  document.getElementById('ef-sepia-val').textContent = editorEffects.sepia + '%';
 
   const video = document.getElementById('editor-video');
-  if (!video) return;
   const b = 1 + editorEffects.brightness / 100;
   const c = 1 + editorEffects.contrast / 100;
   const s = 1 + editorEffects.saturation / 100;
@@ -821,37 +788,26 @@ function loadEditorFile(event) {
 }
 
 function onVideoLoaded() {
-  try {
-    const video = document.getElementById('editor-video');
-    if (!video) return;
-    editorDuration = video.duration || 0;
-    const durEl = document.getElementById('editor-time-duration');
-    if (durEl) durEl.textContent = formatTime(editorDuration);
-    const emptyEl = document.getElementById('editor-timeline-empty');
-    if (emptyEl) emptyEl.style.display = 'none';
-    initSegments();
-    renderTimeline();
-    drawTimelineCanvas();
-    loadWaveform();
-    resetEffects();
-  } catch(e) {
-    console.error('onVideoLoaded error:', e);
-  }
-}
-
-function resetEffects() {
-  const ids = ['ef-brightness','ef-contrast','ef-saturation','ef-blur','ef-grayscale','ef-sepia'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = 0;
-  });
+  const video = document.getElementById('editor-video');
+  editorDuration = video.duration || 0;
+  document.getElementById('editor-time-duration').textContent = formatTime(editorDuration);
+  document.getElementById('editor-timeline-empty').style.display = 'none';
+  initSegments();
+  renderTimeline();
+  drawTimelineCanvas();
+  loadWaveform();
+  // Reset effects
+  document.getElementById('ef-brightness').value = 0;
+  document.getElementById('ef-contrast').value = 0;
+  document.getElementById('ef-saturation').value = 0;
+  document.getElementById('ef-blur').value = 0;
+  document.getElementById('ef-grayscale').value = 0;
+  document.getElementById('ef-sepia').value = 0;
   applyEffects();
 }
 
 function loadWaveform() {
-  const urlEl = document.getElementById('editor-video-url');
-  if (!urlEl) return;
-  const videoUrl = urlEl.value.trim();
+  const videoUrl = document.getElementById('editor-video-url').value.trim();
   if (!videoUrl || editorWaveformLoading) return;
   editorWaveformLoading = true;
   editorWaveformData = null;
@@ -868,7 +824,9 @@ function loadWaveform() {
         drawTimelineCanvas();
       }
     })
-    .catch(() => {})
+    .catch(() => {
+      // Waveform is optional - silently fail
+    })
     .finally(() => { editorWaveformLoading = false; });
 }
 

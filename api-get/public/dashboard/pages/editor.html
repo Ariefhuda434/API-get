@@ -18,7 +18,7 @@
               <!-- Preview -->
               <div class="editor-preview">
                 <div class="editor-preview-container" id="editor-preview-container">
-                  <video id="editor-video" controls style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></video>
+                  <video id="editor-video" controls style="width:100%;max-height:100%;border-radius:8px;"></video>
                   <div class="editor-layers-container" id="editor-layers-container">
                     <!-- Text layers rendered here by JS -->
                     <!-- Image layers rendered here by JS -->
@@ -151,20 +151,11 @@
                   <div class="editor-controls-section">
                     <div class="editor-section-header">
                       <h4 class="editor-controls-title">Image Overlays</h4>
-                      <button class="btn btn-xs btn-primary" onclick="document.getElementById('editor-image-input').click()">+ Upload</button>
+                      <button class="btn btn-xs btn-primary" onclick="document.getElementById('editor-image-input').click()">+ Add Image</button>
                       <input type="file" id="editor-image-input" accept="image/*" style="display:none" onchange="addImageLayer(event)">
                     </div>
                     <div class="editor-layer-list" id="editor-image-layer-list">
-                      <div class="editor-layer-empty">No images. Click "+ Upload"</div>
-                    </div>
-                  </div>
-                  <div class="editor-controls-section">
-                    <div class="editor-section-header">
-                      <h4 class="editor-controls-title">Server Images (<span id="editor-server-image-count">0</span>)</h4>
-                      <button class="btn btn-xs btn-outline" onclick="loadServerImages()">Refresh</button>
-                    </div>
-                    <div id="editor-server-image-list">
-                      <div class="editor-layer-empty">Click Refresh to load server images</div>
+                      <div class="editor-layer-empty">No images. Click "+ Add Image"</div>
                     </div>
                   </div>
                   <div class="editor-controls-section" id="editor-image-controls" style="display:none;">

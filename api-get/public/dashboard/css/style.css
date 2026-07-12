@@ -782,19 +782,19 @@ body {
 .key-gen-result .key-email { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
 
 /* ── Video Editor ──────────────────────────────────────────────────── */
-.editor-layout { display: flex; flex-direction: column; height: calc(100vh - 140px); gap: 8px; }
+.editor-layout { display: flex; flex-direction: column; height: calc(100vh - 120px); gap: 8px; }
 .editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; gap: 12px; flex-shrink: 0; }
 .editor-toolbar-left, .editor-toolbar-right { display: flex; align-items: center; gap: 8px; }
 .editor-source-input { display: flex; align-items: center; gap: 6px; }
-.editor-main { display: grid; grid-template-columns: 1fr 300px; gap: 12px; min-height: 0; overflow: hidden; }
-.editor-preview { display: flex; flex-direction: column; min-width: 0; }
+.editor-main { display: flex; flex: 1; gap: 12px; min-height: 0; }
+.editor-preview { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .editor-preview-container { position: relative; flex: 1; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 300px; }
-.editor-preview-container video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.editor-preview-container video { width: 100%; height: 100%; object-fit: contain; }
 .editor-text-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; padding: 20px; }
 .editor-overlay-text { pointer-events: auto; cursor: text; padding: 8px 16px; border-radius: 4px; max-width: 80%; text-align: center; font-size: 48px; color: #fff; font-family: Arial; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
 .editor-overlay-text:focus { outline: 2px solid var(--primary); background: rgba(0,0,0,0.3); }
 .editor-preview-info { text-align: center; padding: 4px 0; font-size: 13px; color: var(--text-dim); font-family: monospace; }
-.editor-controls { overflow-y: auto; padding: 0 4px; }
+.editor-controls { width: 300px; overflow-y: auto; padding: 0 4px; flex-shrink: 0; }
 .editor-controls-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; }
 .editor-controls-title { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; letter-spacing: 0.5px; }
 
@@ -854,13 +854,6 @@ body {
 
 /* ── Extra Small Button ───────────────────────────────────────────── */
 .btn-xs { font-size: 11px; padding: 3px 10px; height: 26px; }
-
-/* ── Server Image Grid ────────────────────────────────────────────── */
-#editor-server-image-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 200px; overflow-y: auto; }
-.editor-server-image { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; font-size: 10px; color: var(--text-dim); text-align: center; overflow: hidden; }
-.editor-server-image:hover { border-color: var(--primary); background: rgba(0, 136, 255, 0.1); }
-.editor-server-image img { width: 100%; height: 50px; object-fit: cover; border-radius: 2px; }
-.editor-server-image span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 /* ── Shape Palette ────────────────────────────────────────────────── */
 .editor-shape-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
