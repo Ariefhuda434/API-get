@@ -48,13 +48,24 @@ const PX_PER_SECOND_BASE = 80;
 const PADDING = 60;
 
 function initEditor() {
+  // Reset state
+  selectedLayerId = null;
+  isDraggingLayer = false;
+
+  const video = document.getElementById('editor-video');
+  if (video) {
+    // Stop any playing video before re-init
+    video.pause();
+  }
+
   loadBgmTracks();
   loadTemplates();
   loadIntros();
   setupEditorListeners();
+  setupTimelineMouse();
   initEditorFromUrl();
   setupKeyboardShortcuts();
-  initLayersContainer();
+  initLayerDrag();
 }
 
 // ── Initialization helpers ────────────────────────────────────────────
@@ -97,13 +108,12 @@ function loadIntros() {
     .catch(() => {});
 }
 
-// ── Layers Container — handles drag-drop on the preview ───────────────
+// ── Layer drag — handles drag-drop on the preview ────────────────────
 
-function initLayersContainer() {
+function initLayerDrag() {
   const container = document.getElementById('editor-layers-container');
-  container.addEventListener('mousedown', onLayerMouseDown);
-  document.addEventListener('mousemove', onLayerMouseMove);
-  document.addEventListener('mouseup', onLayerMouseUp);
+  if (!container) return;
+  container.onmousedown = onLayerMouseDown;
 }
 
 function onLayerMouseDown(e) {
@@ -688,7 +698,6 @@ function removeSelectedSegment() {
 function setupEditorListeners() {
   const video = document.getElementById('editor-video');
   if (!video) return;
-  // Use on* handlers to prevent duplicate listeners on re-init
   video.onloadedmetadata = onVideoLoaded;
   video.ontimeupdate = onVideoTimeUpdate;
   video.onplay = () => { editorIsPlaying = true; startPlayheadAnimation(); };
@@ -702,15 +711,26 @@ function setupEditorListeners() {
   const track = document.getElementById('editor-timeline-track');
   if (!track) return;
   track.onmousedown = onTimelineMouseDown;
-  document.onmousemove = onTimelineMouseMove;
-  document.onmouseup = onTimelineMouseUp;
 
   const bgmVol = document.getElementById('editor-bgm-volume');
   if (bgmVol) {
     bgmVol.oninput = () => {
-      document.getElementById('editor-bgm-volume-label').textContent = bgmVol.value + '%';
+      const lbl = document.getElementById('editor-bgm-volume-label');
+      if (lbl) lbl.textContent = bgmVol.value + '%';
     };
   }
+}
+
+function setupTimelineMouse() {
+  // Combined document-level mouse handlers (layers + timeline)
+  document.onmousemove = (e) => {
+    onTimelineMouseMove(e);
+    onLayerMouseMove(e);
+  };
+  document.onmouseup = (e) => {
+    onTimelineMouseUp(e);
+    onLayerMouseUp(e);
+  };
 }
 
 function setupKeyboardShortcuts() {
