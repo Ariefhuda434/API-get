@@ -796,6 +796,7 @@ function onVideoLoaded() {
   renderTimeline();
   drawTimelineCanvas();
   loadWaveform();
+
   // Reset effects
   document.getElementById('ef-brightness').value = 0;
   document.getElementById('ef-contrast').value = 0;
