@@ -402,6 +402,10 @@ function loadEditorVideo() {
   showToast('Loading video...');
   video.src = url;
   video.load();
+  if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
+  window._videoLoadTimeout = setTimeout(() => {
+    if (video.readyState < 1) showToast('Video gagal load. Cek URL atau coba video lain.');
+  }, 30000);
 }
 
 function loadEditorFile(event) {
