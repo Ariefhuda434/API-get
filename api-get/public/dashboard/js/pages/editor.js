@@ -687,22 +687,29 @@ function removeSelectedSegment() {
 
 function setupEditorListeners() {
   const video = document.getElementById('editor-video');
-  video.addEventListener('loadedmetadata', onVideoLoaded);
-  video.addEventListener('timeupdate', onVideoTimeUpdate);
-  video.addEventListener('play', () => { editorIsPlaying = true; startPlayheadAnimation(); });
-  video.addEventListener('pause', () => { editorIsPlaying = false; stopPlayheadAnimation(); });
-  video.addEventListener('seeked', updatePlayheadPosition);
+  if (!video) return;
+  // Use on* handlers to prevent duplicate listeners on re-init
+  video.onloadedmetadata = onVideoLoaded;
+  video.ontimeupdate = onVideoTimeUpdate;
+  video.onplay = () => { editorIsPlaying = true; startPlayheadAnimation(); };
+  video.onpause = () => { editorIsPlaying = false; stopPlayheadAnimation(); };
+  video.onseeked = updatePlayheadPosition;
+  video.onerror = () => {
+    showToast('⚠️ Video error: format tidak didukung atau URL bermasalah');
+    if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
+  };
 
   const track = document.getElementById('editor-timeline-track');
-  track.addEventListener('mousedown', onTimelineMouseDown);
-  document.addEventListener('mousemove', onTimelineMouseMove);
-  document.addEventListener('mouseup', onTimelineMouseUp);
+  if (!track) return;
+  track.onmousedown = onTimelineMouseDown;
+  document.onmousemove = onTimelineMouseMove;
+  document.onmouseup = onTimelineMouseUp;
 
   const bgmVol = document.getElementById('editor-bgm-volume');
   if (bgmVol) {
-    bgmVol.addEventListener('input', () => {
+    bgmVol.oninput = () => {
       document.getElementById('editor-bgm-volume-label').textContent = bgmVol.value + '%';
-    });
+    };
   }
 }
 
@@ -737,9 +744,17 @@ function loadEditorVideo() {
   const url = document.getElementById('editor-video-url').value.trim();
   if (!url) { showToast('Masukkan URL video'); return; }
   const video = document.getElementById('editor-video');
+  if (!video) { showToast('Video element not found'); return; }
   showToast('Loading video...');
   video.src = url;
   video.load();
+  // Timeout: if video doesn't load metadata within 30s, show error
+  if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
+  window._videoLoadTimeout = setTimeout(() => {
+    if (video.readyState < 1) {
+      showToast('⚠️ Video gagal load. Cek URL atau coba video lain.');
+    }
+  }, 30000);
 }
 
 function loadEditorFile(event) {
@@ -784,12 +799,14 @@ function loadWaveform() {
   })
     .then(r => r.json())
     .then(data => {
-      if (data.success) {
+      if (data.success && data.points) {
         editorWaveformData = data.points;
         drawTimelineCanvas();
       }
     })
-    .catch(() => {})
+    .catch(() => {
+      // Waveform is optional - silently fail
+    })
     .finally(() => { editorWaveformLoading = false; });
 }
 
@@ -1139,11 +1156,14 @@ async function exportEditedVideo() {
 
 function previewEditedVideo(path) {
   const video = document.getElementById('editor-video');
+  if (!video) return;
   if (path.startsWith('/')) path = window.location.origin + path;
+  if (window._videoLoadTimeout) clearTimeout(window._videoLoadTimeout);
   video.src = path;
   video.load();
-  video.play();
+  video.play().catch(() => {});
   document.getElementById('editor-video-url').value = path;
+  showToast('Preview ready');
 }
 
 async function quickPreview() {
@@ -1151,9 +1171,16 @@ async function quickPreview() {
   if (!videoUrl) { showToast('Load video dulu'); return; }
 
   const btn = document.querySelector('[onclick="quickPreview()"]');
+  if (!btn) return;
   const orig = btn.textContent;
   btn.textContent = 'Previewing...';
   btn.disabled = true;
+
+  const introDurEl = document.getElementById('editor-intro-duration');
+  const tmplEl = document.getElementById('editor-template-select');
+  const title = (textLayers[0] && textLayers[0].text) || '';
+  const titleColor = (textLayers[0] && textLayers[0].color) || '#ffffff';
+  const titleSize = (textLayers[0] && textLayers[0].size) || 48;
 
   try {
     const res = await fetch('/api/video/preview', {
@@ -1161,17 +1188,16 @@ async function quickPreview() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         videoUrl,
-        title: (textLayers[0] && textLayers[0].text) || '',
-        introDuration: parseInt(document.getElementById('editor-intro-duration').value) || 3,
-        template: document.getElementById('editor-template-select').value || '',
-        titleColor: (textLayers[0] && textLayers[0].color) || '#ffffff',
-        titleSize: (textLayers[0] && textLayers[0].size) || 48,
+        title,
+        introDuration: introDurEl ? parseInt(introDurEl.value) : 3,
+        template: tmplEl ? tmplEl.value : '',
+        titleColor,
+        titleSize,
       }),
     });
     const data = await res.json();
     if (data.success) {
       previewEditedVideo(data.outputPath);
-      showToast('Preview ready');
     } else {
       showToast('Preview failed: ' + (data.error || 'Unknown'));
     }

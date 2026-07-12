@@ -4,6 +4,25 @@ function loadKeys() {
   } catch(e) { savedKeys = []; }
 }
 
+// Sync key status (used/type) from server to localStorage
+async function syncKeysFromServer() {
+  try {
+    const res = await fetch('/api/keys');
+    const data = await res.json();
+    if (data.keys) {
+      for (const sk of data.keys) {
+        const idx = savedKeys.findIndex(k => k.key === sk.key);
+        if (idx >= 0) {
+          savedKeys[idx].type = sk.type;
+          savedKeys[idx].used = sk.used;
+          savedKeys[idx].realCredit = sk.credit !== undefined ? sk.credit : savedKeys[idx].realCredit;
+        }
+      }
+      saveKeys();
+    }
+  } catch(e) {}
+}
+
 function saveKeys() {
   localStorage.setItem('viralcut_keys', JSON.stringify(savedKeys));
   updateKeySelector();
@@ -168,6 +187,7 @@ function copyKeyValue(key) {
 
 function renderKeyManager() {
   loadKeys();
+  syncKeysFromServer();
   ensureCreditChecked();
   document.getElementById('key-count').textContent = savedKeys.length;
 
