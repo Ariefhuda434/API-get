@@ -787,9 +787,9 @@ body {
 .editor-toolbar-left, .editor-toolbar-right { display: flex; align-items: center; gap: 8px; }
 .editor-source-input { display: flex; align-items: center; gap: 6px; }
 .editor-main { display: flex; flex: 1; gap: 12px; min-height: 0; overflow: hidden; }
-.editor-preview { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.editor-preview-container { position: relative; flex: 1; min-width: 0; max-width: 100%; max-height: 100%; background: #000; border-radius: 8px; overflow: hidden; min-height: 300px; }
-.editor-preview-container video { width: 100%; height: 100%; object-fit: contain; }
+.editor-preview { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; }
+.editor-preview-container { position: relative; background: #000; border-radius: 8px; overflow: hidden; max-width: 100%; max-height: 100%; width: auto; height: auto; }
+.editor-preview-container video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .editor-text-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; padding: 20px; }
 .editor-overlay-text { pointer-events: auto; cursor: text; padding: 8px 16px; border-radius: 4px; max-width: 80%; text-align: center; font-size: 48px; color: #fff; font-family: Arial; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
 .editor-overlay-text:focus { outline: 2px solid var(--primary); background: rgba(0,0,0,0.3); }
