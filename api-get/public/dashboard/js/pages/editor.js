@@ -505,7 +505,7 @@ function refreshLayerList() {
 
 function renderLayers() {
   const container = document.getElementById('editor-layers-container');
-  // Clear existing layer DOM elements (keep any non-layer children)
+  if (!container) return;
   const existing = container.querySelectorAll('.editor-layer-el');
   existing.forEach(el => el.remove());
 
@@ -633,22 +633,32 @@ function renderLayers() {
 
 // ── Effects ───────────────────────────────────────────────────────────
 
-function applyEffects() {
-  editorEffects.brightness = parseInt(document.getElementById('ef-brightness').value);
-  editorEffects.contrast = parseInt(document.getElementById('ef-contrast').value);
-  editorEffects.saturation = parseInt(document.getElementById('ef-saturation').value);
-  editorEffects.blur = parseInt(document.getElementById('ef-blur').value);
-  editorEffects.grayscale = parseInt(document.getElementById('ef-grayscale').value);
-  editorEffects.sepia = parseInt(document.getElementById('ef-sepia').value);
+function safeVal(id, fallback = 0) {
+  const el = document.getElementById(id);
+  return el ? parseInt(el.value) : fallback;
+}
+function safeText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
 
-  document.getElementById('ef-brightness-val').textContent = editorEffects.brightness;
-  document.getElementById('ef-contrast-val').textContent = editorEffects.contrast;
-  document.getElementById('ef-saturation-val').textContent = editorEffects.saturation;
-  document.getElementById('ef-blur-val').textContent = editorEffects.blur;
-  document.getElementById('ef-grayscale-val').textContent = editorEffects.grayscale + '%';
-  document.getElementById('ef-sepia-val').textContent = editorEffects.sepia + '%';
+function applyEffects() {
+  editorEffects.brightness = safeVal('ef-brightness');
+  editorEffects.contrast = safeVal('ef-contrast');
+  editorEffects.saturation = safeVal('ef-saturation');
+  editorEffects.blur = safeVal('ef-blur');
+  editorEffects.grayscale = safeVal('ef-grayscale');
+  editorEffects.sepia = safeVal('ef-sepia');
+
+  safeText('ef-brightness-val', editorEffects.brightness);
+  safeText('ef-contrast-val', editorEffects.contrast);
+  safeText('ef-saturation-val', editorEffects.saturation);
+  safeText('ef-blur-val', editorEffects.blur);
+  safeText('ef-grayscale-val', editorEffects.grayscale + '%');
+  safeText('ef-sepia-val', editorEffects.sepia + '%');
 
   const video = document.getElementById('editor-video');
+  if (!video) return;
   const b = 1 + editorEffects.brightness / 100;
   const c = 1 + editorEffects.contrast / 100;
   const s = 1 + editorEffects.saturation / 100;
@@ -813,27 +823,37 @@ function loadEditorFile(event) {
 }
 
 function onVideoLoaded() {
-  const video = document.getElementById('editor-video');
-  editorDuration = video.duration || 0;
-  document.getElementById('editor-time-duration').textContent = formatTime(editorDuration);
-  document.getElementById('editor-timeline-empty').style.display = 'none';
-  initSegments();
-  renderTimeline();
-  drawTimelineCanvas();
-  loadWaveform();
+  try {
+    const video = document.getElementById('editor-video');
+    if (!video) return;
+    editorDuration = video.duration || 0;
+    const durEl = document.getElementById('editor-time-duration');
+    if (durEl) durEl.textContent = formatTime(editorDuration);
+    const emptyEl = document.getElementById('editor-timeline-empty');
+    if (emptyEl) emptyEl.style.display = 'none';
+    initSegments();
+    renderTimeline();
+    drawTimelineCanvas();
+    loadWaveform();
+    resetEffects();
+  } catch(e) {
+    console.error('onVideoLoaded error:', e);
+  }
+}
 
-  // Reset effects
-  document.getElementById('ef-brightness').value = 0;
-  document.getElementById('ef-contrast').value = 0;
-  document.getElementById('ef-saturation').value = 0;
-  document.getElementById('ef-blur').value = 0;
-  document.getElementById('ef-grayscale').value = 0;
-  document.getElementById('ef-sepia').value = 0;
+function resetEffects() {
+  const ids = ['ef-brightness','ef-contrast','ef-saturation','ef-blur','ef-grayscale','ef-sepia'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = 0;
+  });
   applyEffects();
 }
 
 function loadWaveform() {
-  const videoUrl = document.getElementById('editor-video-url').value.trim();
+  const urlEl = document.getElementById('editor-video-url');
+  if (!urlEl) return;
+  const videoUrl = urlEl.value.trim();
   if (!videoUrl || editorWaveformLoading) return;
   editorWaveformLoading = true;
   editorWaveformData = null;
@@ -850,9 +870,7 @@ function loadWaveform() {
         drawTimelineCanvas();
       }
     })
-    .catch(() => {
-      // Waveform is optional - silently fail
-    })
+    .catch(() => {})
     .finally(() => { editorWaveformLoading = false; });
 }
 
