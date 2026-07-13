@@ -1,8 +1,9 @@
 // ── State ──────────────────────────────────────────────────────────────
 let textLayers = [];
 let shapeLayers = [];
-let selectedLayer = null; // { id, type: 'text'|'shape' }
+let selectedLayer = null; // { id, type: 'text'|'shape'|'video' }
 let editorDuration = 0;
+let videoLayer = { x: 50, y: 50, scale: 100 };
 let editorSegments = [];
 let editorSelectedSegment = 0;
 let editorZoom = 1;
@@ -19,11 +20,13 @@ function initEditor() {
   editorSegments = [];
   layerIdCounter = 0;
   editorZoom = 1;
+  videoLayer = { x: 50, y: 50, scale: 100 };
   const video = document.getElementById('editor-video');
   if (video) video.pause();
   setupEditorListeners();
   renderLayerList();
   updateFramePreset();
+  renderVideoLayer();
 }
 
 function setupEditorListeners() {
@@ -97,6 +100,13 @@ function selectLayer(id, type) {
 
 function deleteSelectedLayer() {
   if (!selectedLayer) return;
+  if (selectedLayer.type === 'video') {
+    selectedLayer = null;
+    document.getElementById('editor-video-controls').style.display = 'none';
+    renderLayerList();
+    renderLayers();
+    return;
+  }
   if (selectedLayer.type === 'text') {
     textLayers = textLayers.filter(l => l.id !== selectedLayer.id);
   } else {
@@ -125,20 +135,34 @@ function renderLayerList() {
   const shapeContainer = document.getElementById('editor-layer-list-shapes');
   if (!container) return;
 
-  const all = [...textLayers.map(l => ({...l, _type: 'text'})), ...shapeLayers.map(l => ({...l, _type: 'shape'}))];
-  const html = all.length === 0 ? '<div class="editor-layer-empty">Add text or shapes</div>' :
-    all.map(l => {
-      const isSelected = selectedLayer && selectedLayer.id === l.id && selectedLayer.type === l._type;
-      const icon = l._type === 'text' ? 'T' : { rectangle:'▬',circle:'●',ellipse:'⬮',triangle:'▲',star:'★',diamond:'◆',arrow:'➤',line:'╌' }[l.shapeType] || '◻';
-      const name = l._type === 'text' ? l.text : l.shapeType;
-      return `<div class="editor-layer-item ${isSelected ? 'selected' : ''}" data-id="${l.id}" data-type="${l._type}" onclick="selectLayer(${l.id},'${l._type}')">
-        <span class="editor-layer-icon">${icon}</span>
-        <span class="editor-layer-name">${escHtml(name.substring(0,20))}</span>
-        <button class="editor-layer-del" onclick="event.stopPropagation();deleteLayerById(${l.id},'${l._type}')">✕</button>
-      </div>`;
-    }).join('');
-  container.innerHTML = html;
-  if (shapeContainer) shapeContainer.innerHTML = html;
+  const textItems = textLayers.map(l => {
+    const isSel = selectedLayer && selectedLayer.id === l.id && selectedLayer.type === 'text';
+    return `<div class="editor-layer-item ${isSel ? 'selected' : ''}" data-id="${l.id}" data-type="text" onclick="selectLayer(${l.id},'text')">
+      <span class="editor-layer-icon">T</span>
+      <span class="editor-layer-name">${escHtml(l.text.substring(0,20))}</span>
+      <button class="editor-layer-del" onclick="event.stopPropagation();deleteLayerById(${l.id},'text')">✕</button>
+    </div>`;
+  }).join('');
+
+  const shapeItems = shapeLayers.map(l => {
+    const isSel = selectedLayer && selectedLayer.id === l.id && selectedLayer.type === 'shape';
+    const icon = { rectangle:'▬',circle:'●',ellipse:'⬮',triangle:'▲',star:'★',diamond:'◆',arrow:'➤',line:'╌' }[l.shapeType] || '◻';
+    return `<div class="editor-layer-item ${isSel ? 'selected' : ''}" data-id="${l.id}" data-type="shape" onclick="selectLayer(${l.id},'shape')">
+      <span class="editor-layer-icon">${icon}</span>
+      <span class="editor-layer-name">${escHtml(l.shapeType.substring(0,20))}</span>
+      <button class="editor-layer-del" onclick="event.stopPropagation();deleteLayerById(${l.id},'shape')">✕</button>
+    </div>`;
+  }).join('');
+
+  // Video layer at top of text list
+  const videoSel = selectedLayer && selectedLayer.type === 'video';
+  const videoItem = `<div class="editor-layer-item ${videoSel ? 'selected' : ''}" onclick="selectVideoLayer()">
+    <span class="editor-layer-icon">▶</span>
+    <span class="editor-layer-name">Video</span>
+  </div>`;
+
+  container.innerHTML = videoItem + (textItems || '<div class="editor-layer-empty">No text layers</div>') + shapeItems;
+  if (shapeContainer) shapeContainer.innerHTML = (shapeItems || '<div class="editor-layer-empty">No shapes</div>');
 }
 
 function deleteLayerById(id, type) {
@@ -161,7 +185,9 @@ function escHtml(s) {
 function showTextControls() {
   const controls = document.getElementById('editor-text-controls');
   const shapeControls = document.getElementById('editor-shape-controls');
+  const videoControls = document.getElementById('editor-video-controls');
   if (shapeControls) shapeControls.style.display = 'none';
+  if (videoControls) videoControls.style.display = 'none';
   controls.style.display = 'block';
   const l = getSelectedLayer();
   if (!l || l.type !== 'text') return;
@@ -245,7 +271,9 @@ function alignLayer(dir) {
 function showShapeControls() {
   const controls = document.getElementById('editor-shape-controls');
   const textControls = document.getElementById('editor-text-controls');
+  const videoControls = document.getElementById('editor-video-controls');
   if (textControls) textControls.style.display = 'none';
+  if (videoControls) videoControls.style.display = 'none';
   controls.style.display = 'block';
   const l = getSelectedLayer();
   if (!l || l.type !== 'shape') return;
@@ -260,6 +288,62 @@ function showShapeControls() {
   document.getElementById('editor-layer-y-shape').value = l.y;
   document.getElementById('editor-layer-x-val-shape').textContent = l.x + '%';
   document.getElementById('editor-layer-y-val-shape').textContent = l.y + '%';
+}
+
+// ── Video Layer ─────────────────────────────────────────────────────────
+function renderVideoLayer() {
+  const wrapper = document.getElementById('editor-video-wrapper');
+  const video = document.getElementById('editor-video');
+  if (!wrapper || !video) return;
+  const s = videoLayer.scale / 100;
+  video.style.objectFit = 'cover';
+  video.style.objectPosition = videoLayer.x + '% ' + videoLayer.y + '%';
+  video.style.width = (s * 100) + '%';
+  video.style.height = (s * 100) + '%';
+  video.style.left = ((1 - s) / 2 * 100) + '%';
+  video.style.top = ((1 - s) / 2 * 100) + '%';
+  wrapper.dataset.selected = (selectedLayer && selectedLayer.type === 'video') ? 'true' : 'false';
+}
+
+function onVideoMouseDown(e) {
+  selectVideoLayer();
+  if (!selectedLayer || selectedLayer.type !== 'video') return;
+  const wrapper = document.getElementById('editor-video-wrapper');
+  if (!wrapper) return;
+  const rect = wrapper.getBoundingClientRect();
+  dragLayer = { id: 'video', type: 'video' };
+  dragOffsetX = (e.clientX - rect.left) / rect.width;
+  dragOffsetY = (e.clientY - rect.top) / rect.height;
+  document.onmousemove = onDragMove;
+  document.onmouseup = onDragEnd;
+}
+
+function selectVideoLayer() {
+  selectedLayer = { id: 'video', type: 'video' };
+  const tc = document.getElementById('editor-text-controls');
+  const sc = document.getElementById('editor-shape-controls');
+  if (tc) tc.style.display = 'none';
+  if (sc) sc.style.display = 'none';
+  showVideoControls();
+  switchEditorTab('video');
+  renderLayerList();
+  renderLayers();
+}
+
+function showVideoControls() {
+  const controls = document.getElementById('editor-video-controls');
+  if (!controls) return;
+  controls.style.display = 'block';
+  document.getElementById('editor-video-x').value = videoLayer.x;
+  document.getElementById('editor-video-y').value = videoLayer.y;
+  document.getElementById('editor-video-scale').value = videoLayer.scale;
+}
+
+function updateVideoLayer() {
+  videoLayer.x = parseInt(document.getElementById('editor-video-x').value);
+  videoLayer.y = parseInt(document.getElementById('editor-video-y').value);
+  videoLayer.scale = parseInt(document.getElementById('editor-video-scale').value);
+  renderVideoLayer();
 }
 
 // ── Render Layers ──────────────────────────────────────────────────────
@@ -361,6 +445,16 @@ function onDragMove(e) {
   const crect = container.getBoundingClientRect();
   const px = (e.clientX - crect.left) / crect.width * 100;
   const py = (e.clientY - crect.top) / crect.height * 100;
+
+  if (dragLayer.type === 'video') {
+    videoLayer.x = Math.max(0, Math.min(100, px));
+    videoLayer.y = Math.max(0, Math.min(100, py));
+    showVideoControls();
+    renderVideoLayer();
+    renderLayers();
+    return;
+  }
+
   const l = findLayer(dragLayer.id, dragLayer.type);
   if (!l) return;
   l.x = Math.max(0, Math.min(100, px));
@@ -392,10 +486,21 @@ function addResizeHandles() {
   if (!selectedLayer) return;
   const container = document.getElementById('editor-layers-container');
   if (!container) return;
-  const layerEl = container.querySelector('.editor-layer-el.selected');
+
+  // Find the selected element
+  let layerEl = null;
+  if (selectedLayer.type === 'video') {
+    const wrapper = document.getElementById('editor-video-wrapper');
+    if (!wrapper) return;
+    layerEl = wrapper;
+  } else {
+    layerEl = container.querySelector('.editor-layer-el.selected');
+  }
   if (!layerEl) return;
-  const l = getSelectedLayer();
-  if (!l) return;
+  if (selectedLayer.type !== 'video') {
+    const l = getSelectedLayer();
+    if (!l) return;
+  }
 
   const cRect = container.getBoundingClientRect();
   const rect = layerEl.getBoundingClientRect();
@@ -434,6 +539,21 @@ function addResizeHandles() {
 function onResizeStart(e, dir, id, type) {
   e.stopPropagation();
   e.preventDefault();
+
+  if (type === 'video') {
+    const container = document.getElementById('editor-preview-container');
+    if (!container) return;
+    resizeHandle = {
+      dir, layerId: id, layerType: type,
+      startX: e.clientX, startY: e.clientY,
+      initScale: videoLayer.scale,
+      containerW: container.clientWidth, containerH: container.clientHeight,
+    };
+    document.onmousemove = onResizeMove;
+    document.onmouseup = onResizeEnd;
+    return;
+  }
+
   const l = findLayer(id, type);
   if (!l) return;
   resizeHandle = {
@@ -448,10 +568,21 @@ function onResizeStart(e, dir, id, type) {
 
 function onResizeMove(e) {
   if (!resizeHandle) return;
-  const l = findLayer(resizeHandle.layerId, resizeHandle.layerType);
-  if (!l) return;
   const dx = e.clientX - resizeHandle.startX;
   const dy = e.clientY - resizeHandle.startY;
+
+  if (resizeHandle.layerType === 'video') {
+    const dist = Math.max(dx, dy);
+    const change = dist / 3;
+    videoLayer.scale = Math.max(100, Math.min(500, resizeHandle.initScale + change));
+    renderVideoLayer();
+    showVideoControls();
+    renderLayers();
+    return;
+  }
+
+  const l = findLayer(resizeHandle.layerId, resizeHandle.layerType);
+  if (!l) return;
 
   if (l.type === 'text') {
     const dir = resizeHandle.dir;
@@ -540,9 +671,12 @@ function onVideoLoaded() {
   if (durEl) durEl.textContent = formatTime(editorDuration);
   const emptyEl = document.getElementById('editor-timeline-empty');
   if (emptyEl) emptyEl.style.display = 'none';
+  const wrapper = document.getElementById('editor-video-wrapper');
+  if (wrapper) wrapper.onmousedown = (e) => onVideoMouseDown(e);
   initSegments();
   renderTimeline();
   drawTimelineCanvas();
+  renderVideoLayer();
 }
 
 function onVideoTimeUpdate() {

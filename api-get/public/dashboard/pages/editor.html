@@ -17,7 +17,9 @@
             <div class="editor-main">
               <div class="editor-preview">
                 <div class="editor-preview-container" id="editor-preview-container">
-                  <video id="editor-video" controls></video>
+                  <div id="editor-video-wrapper" class="editor-video-wrapper">
+                    <video id="editor-video" controls></video>
+                  </div>
                   <div class="editor-layers-container" id="editor-layers-container">
                     <!-- Layers rendered by JS -->
                   </div>
@@ -32,6 +34,7 @@
                   <button class="editor-tab active" data-tab="text" onclick="switchEditorTab('text')">Text</button>
                   <button class="editor-tab" data-tab="shapes" onclick="switchEditorTab('shapes')">Shapes</button>
                   <button class="editor-tab" data-tab="freeze" onclick="switchEditorTab('freeze')">Freeze</button>
+                  <button class="editor-tab" data-tab="video" onclick="switchEditorTab('video')">Video</button>
                   <button class="editor-tab" data-tab="settings" onclick="switchEditorTab('settings')">Settings</button>
                 </div>
 
@@ -257,6 +260,27 @@
                     <div class="form-group" style="margin-bottom:0;">
                       <label class="form-label">Subtitle</label>
                       <input type="text" class="form-input" id="editor-freeze-subtitle" placeholder="Subtitle">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VIDEO TAB -->
+                <div class="editor-tab-content" id="editor-tab-video">
+                  <div class="editor-controls-section">
+                    <h4 class="editor-controls-title">Video Layer</h4>
+                  </div>
+                  <div class="editor-controls-section" id="editor-video-controls" style="display:none;">
+                    <div class="form-group">
+                      <label class="form-label">Position X</label>
+                      <input type="range" class="form-range" id="editor-video-x" min="0" max="100" value="50" oninput="updateVideoLayer()">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Position Y</label>
+                      <input type="range" class="form-range" id="editor-video-y" min="0" max="100" value="50" oninput="updateVideoLayer()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label">Zoom</label>
+                      <input type="range" class="form-range" id="editor-video-scale" min="100" max="300" value="100" oninput="updateVideoLayer()">
                     </div>
                   </div>
                 </div>

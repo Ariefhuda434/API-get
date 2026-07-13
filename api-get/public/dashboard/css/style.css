@@ -843,6 +843,19 @@ body {
 .editor-layers-container .editor-layer-el.selected { outline: 2px dashed var(--primary); outline-offset: 2px; }
 .editor-resize-handle { pointer-events: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
+/* ── Video Wrapper ────────────────────────────────────────────────── */
+.editor-video-wrapper {
+  position: absolute; inset: 0; overflow: hidden;
+  pointer-events: auto; cursor: grab; z-index: 1;
+}
+.editor-video-wrapper[data-selected="true"] {
+  outline: 2px dashed var(--primary); outline-offset: -2px;
+}
+.editor-video-wrapper video {
+  position: absolute; width: 100%; height: 100%;
+  object-fit: cover; pointer-events: none;
+}
+
 /* ── Timeline Enhancements ────────────────────────────────────────── */
 .editor-timeline-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
 .editor-timeline-controls .btn-outline { font-size: 11px; padding: 2px 8px; }
