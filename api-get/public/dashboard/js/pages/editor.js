@@ -386,10 +386,9 @@ function getFreezeConfig() {
   const enabled = document.getElementById('editor-freeze-enable').checked;
   if (!enabled) return null;
   return {
+    enabled: true,
     time: parseFloat(document.getElementById('editor-freeze-time').value) || 1,
     duration: parseInt(document.getElementById('editor-freeze-duration').value) || 3,
-    title: document.getElementById('editor-freeze-title').value || '',
-    subtitle: document.getElementById('editor-freeze-subtitle').value || '',
   };
 }
 

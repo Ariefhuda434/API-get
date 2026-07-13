@@ -908,49 +908,33 @@ async function extractVideoFrame(videoPath, timeSec, outputPath) {
 // ── Create Freeze Frame Title Card ────────────────────────────────────
 async function addFreezeFrameTitle(inputPath, freezeFrameImg, outputPath, options = {}) {
   const {
-    title = '',
-    subtitle = '',
     duration = 3,
     template = '',
   } = options;
-
-  if (!title && !subtitle) {
-    if (inputPath !== outputPath) fs.copyFileSync(inputPath, outputPath);
-    return outputPath;
-  }
 
   const info = getVideoInfo(inputPath);
   const W = info.width;
   const H = info.height;
   const fps = info.fps || 30;
   const totalFrames = Math.round(duration * fps);
-  const titleEsc = escapeDrawText(title);
-  const subEsc = escapeDrawText(subtitle);
   const tmpPath = outputPath.replace('.mp4', '_ff_tmp.mp4');
 
   const fadeInFrames = Math.round(0.5 * fps);
   const fadeOutStart = Math.max(0, totalFrames - Math.round(0.5 * fps));
   const fadeOutFrames = Math.round(0.5 * fps);
 
-  // Create intro from freeze frame image
-  // Input order: [0:v] main video, [1:v] freeze frame image
+  // Create intro from freeze frame image only (no title/subtitle baked in)
   let filter =
     `[1:v]scale=${W}:${H},loop=loop=${totalFrames - 1}:size=1,setpts=N/FRAME_RATE/TB[bg];` +
-    `[bg]fade=in:0:${fadeInFrames},fade=out:${fadeOutStart}:${fadeOutFrames}[bgf];` +
-    `[bgf]drawtext=text='${titleEsc}':fontfile=${FONT}:fontsize=${Math.round(W * 0.07)}:fontcolor=white:x=(w-text_w)/2:y=${Math.round(H * 0.35)}[txt]`;
+    `[bg]fade=in:0:${fadeInFrames},fade=out:${fadeOutStart}:${fadeOutFrames}[bgf]`;
 
-  if (subtitle) {
-    filter += `;[txt]drawtext=text='${subEsc}':fontfile=${FONT}:fontsize=${Math.round(W * 0.035)}:fontcolor=gray:x=(w-text_w)/2:y=${Math.round(H * 0.35 + W * 0.1)}[txt2]`;
-  }
-
-  const txtLabel = subtitle ? 'txt2' : 'txt';
   filter += `;[0:v]setpts=PTS+${duration}/TB[mainv]`;
-  filter += `;[${txtLabel}][mainv]concat=n=2:v=1:a=0[vid]`;
+  filter += `;[bgf][mainv]concat=n=2:v=1:a=0[vid]`;
 
   const hasAudio = info.hasAudio;
   let audioFilter = '';
   if (hasAudio) {
-    audioFilter = `;${'[0:a]adelay=' + Math.round(duration * 1000) + '|' + Math.round(duration * 1000) + '[a]'}`;
+    audioFilter = `;[0:a]adelay=${Math.round(duration * 1000)}|${Math.round(duration * 1000)}[a]`;
   }
 
   const args = [
@@ -1194,7 +1178,7 @@ async function fullEdit(options = {}) {
     }
 
     // Step 4: Add title card (if no intro video) or freeze frame title
-    const hasFreezeFrame = freezeFrame && freezeFrame.enabled && freezeFrame.title && freezeFrame.title.trim();
+    const hasFreezeFrame = freezeFrame && freezeFrame.enabled;
     const hasTextIntro = title && title.trim();
     if (hasFreezeFrame && !hasCustomIntro) {
       const freezeTime = freezeFrame.time || 1;
@@ -1207,8 +1191,6 @@ async function fullEdit(options = {}) {
           const ffPath = path.join(OUTPUT_DIR, `${baseName}_freeze_intro.mp4`);
           tempFiles.push(ffPath);
           await addFreezeFrameTitle(workingPath, freezeImg, ffPath, {
-            title: freezeFrame.title || title,
-            subtitle: freezeFrame.subtitle || subtitle,
             duration: freezeDur,
             template,
           });
