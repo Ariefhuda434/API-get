@@ -114,6 +114,14 @@
                       <label class="form-label">BG Radius</label>
                       <input type="range" class="form-range" id="editor-text-bgradius" min="0" max="50" value="4" oninput="updateSelected()">
                     </div>
+                    <div class="form-group">
+                      <label class="form-label">Alignment</label>
+                      <div style="display:flex;gap:4px;">
+                        <button class="btn btn-xs btn-outline editor-align-btn active" data-align="left" onclick="document.querySelectorAll('.editor-align-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');updateSelected();">≡ Left</button>
+                        <button class="btn btn-xs btn-outline editor-align-btn" data-align="center" onclick="document.querySelectorAll('.editor-align-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');updateSelected();">≡ Center</button>
+                        <button class="btn btn-xs btn-outline editor-align-btn" data-align="right" onclick="document.querySelectorAll('.editor-align-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');updateSelected();">≡ Right</button>
+                      </div>
+                    </div>
                     <div class="form-group" style="margin-bottom:0;">
                       <label class="form-label">Position</label>
                       <div style="display:flex;gap:8px;align-items:center;">

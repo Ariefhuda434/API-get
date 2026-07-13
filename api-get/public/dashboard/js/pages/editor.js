@@ -63,7 +63,7 @@ function addTextLayer() {
     text: 'Your Text',
     font: 'Arial', size: 48, color: '#ffffff', opacity: 100,
     bgColor: '#000000', bgOpacity: 0, borderRadius: 4,
-    style: 'normal', spacing: 0, x: 50, y: 50
+    style: 'normal', spacing: 0, textAlign: 'center', x: 50, y: 50
   });
   selectLayer(id, 'text');
   renderLayerList();
@@ -178,6 +178,10 @@ function showTextControls() {
   document.getElementById('editor-layer-y').value = l.y;
   document.getElementById('editor-layer-x-val').textContent = l.x + '%';
   document.getElementById('editor-layer-y-val').textContent = l.y + '%';
+  // Sync text alignment
+  document.querySelectorAll('.editor-align-btn').forEach(b => b.classList.remove('active'));
+  const alignBtn = document.querySelector(`.editor-align-btn[data-align="${l.textAlign}"]`);
+  if (alignBtn) alignBtn.classList.add('active');
 }
 
 function updateSelected() {
@@ -194,6 +198,8 @@ function updateSelected() {
     l.style = document.getElementById('editor-text-style').value;
     l.spacing = parseInt(document.getElementById('editor-text-spacing').value);
     l.borderRadius = parseInt(document.getElementById('editor-text-bgradius').value);
+    const activeAlign = document.querySelector('.editor-align-btn.active');
+    l.textAlign = activeAlign ? activeAlign.dataset.align : 'center';
     l.x = parseInt(document.getElementById('editor-layer-x').value);
     l.y = parseInt(document.getElementById('editor-layer-y').value);
     document.getElementById('editor-layer-x-val').textContent = l.x + '%';
@@ -281,7 +287,8 @@ function renderLayers() {
       background:${bg};
       padding:8px 16px; border-radius:${l.borderRadius}px;
       ${letterSpacing} ${styleCSS}
-      max-width:80%; text-align:center; word-wrap:break-word;
+      max-width:80%; word-wrap:break-word; white-space:pre-wrap;
+      text-align:${l.textAlign || 'center'};
       pointer-events:auto; cursor:grab;
     `;
     div.textContent = l.text;
@@ -773,7 +780,7 @@ async function exportEditedVideo() {
       text: l.text, font: l.font, size: l.size,
       color: l.color, opacity: l.opacity,
       bgColor: l.bgColor, bgOpacity: l.bgOpacity, borderRadius: l.borderRadius,
-      x: l.x, y: l.y, style: l.style, spacing: l.spacing,
+      x: l.x, y: l.y, style: l.style, spacing: l.spacing, textAlign: l.textAlign || 'center',
     })),
     shapeLayers: shapeLayers.map(l => ({
       type: l.shapeType, color: l.color, opacity: l.opacity,
