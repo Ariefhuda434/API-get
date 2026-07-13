@@ -23,6 +23,7 @@ function initEditor() {
   if (video) video.pause();
   setupEditorListeners();
   renderLayerList();
+  updateFramePreset();
 }
 
 function setupEditorListeners() {
@@ -493,6 +494,18 @@ function getFreezeConfig() {
     title: document.getElementById('editor-freeze-title').value || '',
     subtitle: document.getElementById('editor-freeze-subtitle').value || '',
   };
+}
+
+function updateFramePreset() {
+  const val = document.getElementById('editor-frame-preset').value;
+  const container = document.getElementById('editor-preview-container');
+  if (!container) return;
+  const ratios = { '9:16': '9/16', '1:1': '1/1', '4:5': '4/5', '16:9': '16/9' };
+  if (val === 'none' || !ratios[val]) {
+    container.style.aspectRatio = '';
+  } else {
+    container.style.aspectRatio = ratios[val];
+  }
 }
 
 // ── Video Loading ──────────────────────────────────────────────────────
