@@ -841,6 +841,7 @@ body {
 .editor-layers-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 8px; }
 .editor-layers-container .editor-layer-el { pointer-events: auto; }
 .editor-layers-container .editor-layer-el.selected { outline: 2px dashed var(--primary); outline-offset: 2px; }
+.editor-resize-handle { pointer-events: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
 /* ── Timeline Enhancements ────────────────────────────────────────── */
 .editor-timeline-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }

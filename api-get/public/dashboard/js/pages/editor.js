@@ -327,6 +327,7 @@ function renderLayers() {
     div.onmousedown = (e) => onLayerMouseDown(e, l.id, 'shape');
     container.appendChild(div);
   });
+  addResizeHandles();
 }
 
 // ── Drag & Drop ────────────────────────────────────────────────────────
@@ -372,6 +373,100 @@ function onDragMove(e) {
 
 function onDragEnd() {
   dragLayer = null;
+  document.onmousemove = null;
+  document.onmouseup = null;
+}
+
+// ── Resize Handles ─────────────────────────────────────────────────────
+let resizeHandle = null;
+
+function addResizeHandles() {
+  if (!selectedLayer) return;
+  const container = document.getElementById('editor-layers-container');
+  if (!container) return;
+  const layerEl = container.querySelector('.editor-layer-el.selected');
+  if (!layerEl) return;
+  const l = getSelectedLayer();
+  if (!l) return;
+
+  const cRect = container.getBoundingClientRect();
+  const rect = layerEl.getBoundingClientRect();
+  const left = rect.left - cRect.left;
+  const top = rect.top - cRect.top;
+  const w = rect.width;
+  const h = rect.height;
+  if (w < 4 || h < 4) return;
+
+  const hSize = 10;
+  const handles = [
+    { dir: 'nw', x: 0, y: 0, cursor: 'nw-resize' },
+    { dir: 'n', x: w / 2, y: 0, cursor: 'n-resize' },
+    { dir: 'ne', x: w, y: 0, cursor: 'ne-resize' },
+    { dir: 'w', x: 0, y: h / 2, cursor: 'w-resize' },
+    { dir: 'e', x: w, y: h / 2, cursor: 'e-resize' },
+    { dir: 'sw', x: 0, y: h, cursor: 'sw-resize' },
+    { dir: 's', x: w / 2, y: h, cursor: 's-resize' },
+    { dir: 'se', x: w, y: h, cursor: 'se-resize' },
+  ];
+
+  handles.forEach(h => {
+    const el = document.createElement('div');
+    el.className = 'editor-resize-handle';
+    el.dataset.dir = h.dir;
+    el.style.cssText = `
+      position:absolute; left:${left + h.x - hSize / 2}px; top:${top + h.y - hSize / 2}px;
+      width:${hSize}px; height:${hSize}px; background:#fff; border:2px solid var(--primary);
+      border-radius:1px; cursor:${h.cursor}; z-index:100; pointer-events:auto;
+    `;
+    el.onmousedown = (e) => onResizeStart(e, h.dir, l.id, l.type);
+    container.appendChild(el);
+  });
+}
+
+function onResizeStart(e, dir, id, type) {
+  e.stopPropagation();
+  e.preventDefault();
+  const l = findLayer(id, type);
+  if (!l) return;
+  resizeHandle = {
+    dir, layerId: id, layerType: type,
+    startX: e.clientX, startY: e.clientY,
+    initWidth: l.width || 0, initHeight: l.height || 0, initSize: l.size || 48,
+    initPx: l._lastPxSize || 48,
+  };
+  document.onmousemove = onResizeMove;
+  document.onmouseup = onResizeEnd;
+}
+
+function onResizeMove(e) {
+  if (!resizeHandle) return;
+  const l = findLayer(resizeHandle.layerId, resizeHandle.layerType);
+  if (!l) return;
+  const dx = e.clientX - resizeHandle.startX;
+  const dy = e.clientY - resizeHandle.startY;
+
+  if (l.type === 'text') {
+    const dir = resizeHandle.dir;
+    let change = 0;
+    if (dir === 'e' || dir === 'w') change = (dir === 'e' ? dx : -dx) / 4;
+    else if (dir === 's' || dir === 'n') change = (dir === 's' ? dy : -dy) / 4;
+    else change = ((dir.includes('e') ? dx : -dx) + (dir.includes('s') ? dy : -dy)) / 8;
+    l.size = Math.max(8, Math.min(200, resizeHandle.initSize + change));
+    document.getElementById('editor-font-size').value = l.size;
+  } else {
+    const dir = resizeHandle.dir;
+    if (dir.includes('e')) l.width = Math.max(1, Math.min(100, resizeHandle.initWidth + dx / 6));
+    if (dir.includes('w')) l.width = Math.max(1, Math.min(100, resizeHandle.initWidth - dx / 6));
+    if (dir.includes('s')) l.height = Math.max(1, Math.min(100, resizeHandle.initHeight + dy / 6));
+    if (dir.includes('n')) l.height = Math.max(1, Math.min(100, resizeHandle.initHeight - dy / 6));
+    document.getElementById('editor-shape-width').value = l.width;
+    document.getElementById('editor-shape-height').value = l.height;
+  }
+  renderLayers();
+}
+
+function onResizeEnd() {
+  resizeHandle = null;
   document.onmousemove = null;
   document.onmouseup = null;
 }
@@ -488,9 +583,7 @@ function renderTimeline() {
   const track = document.getElementById('editor-timeline-track');
   if (!track) return;
   const pp = getPixelsPerSecond();
-  // Remove old segments
   track.querySelectorAll('.editor-timeline-segment').forEach(el => el.remove());
-  // Remove old trim handles
   track.querySelectorAll('.editor-trim-handle').forEach(el => el.remove());
   editorSegments.forEach((s, i) => {
     const div = document.createElement('div');
@@ -498,7 +591,71 @@ function renderTimeline() {
     div.style.cssText = `position:absolute;left:${s.start*pp+20}px;width:${(s.end-s.start)*pp}px;top:18px;height:44px;background:${i===editorSelectedSegment?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.1)'};border-radius:4px;cursor:pointer;`;
     div.onclick = () => { editorSelectedSegment = i; renderTimeline(); drawTimelineCanvas(); };
     track.appendChild(div);
+
+    // Trim handles on selected segment
+    if (i === editorSelectedSegment) {
+      const lh = document.createElement('div');
+      lh.className = 'editor-trim-handle editor-trim-start';
+      lh.style.cssText = `position:absolute;left:${s.start*pp+16}px;top:24px;width:8px;height:32px;background:var(--primary);border-radius:3px 0 0 3px;cursor:ew-resize;z-index:5;`;
+      lh.onmousedown = (e) => onTrimStart(e, i);
+      track.appendChild(lh);
+
+      const rh = document.createElement('div');
+      rh.className = 'editor-trim-handle editor-trim-end';
+      rh.style.cssText = `position:absolute;left:${(s.end*pp+20)-4}px;top:24px;width:8px;height:32px;background:var(--primary);border-radius:0 3px 3px 0;cursor:ew-resize;z-index:5;`;
+      rh.onmousedown = (e) => onTrimEndHandle(e, i);
+      track.appendChild(rh);
+    }
   });
+}
+
+// ── Trim Handles ───────────────────────────────────────────────────────
+let trimDrag = null;
+
+function onTrimStart(e, segIdx) {
+  e.stopPropagation();
+  e.preventDefault();
+  trimDrag = { type: 'start', segIdx, startX: e.clientX };
+  document.onmousemove = onTrimMove;
+  document.onmouseup = onTrimCleanup;
+}
+
+function onTrimEndHandle(e, segIdx) {
+  e.stopPropagation();
+  e.preventDefault();
+  trimDrag = { type: 'end', segIdx, startX: e.clientX };
+  document.onmousemove = onTrimMove;
+  document.onmouseup = onTrimCleanup;
+}
+
+function onTrimMove(e) {
+  if (!trimDrag) return;
+  const track = document.getElementById('editor-timeline-track');
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const pp = getPixelsPerSecond();
+  const t = Math.max(0, Math.min(editorDuration, (e.clientX - rect.left - 20) / pp));
+  const seg = editorSegments[trimDrag.segIdx];
+  if (!seg) return;
+
+  if (trimDrag.type === 'start') {
+    seg.start = Math.max(0, Math.min(seg.end - 0.5, t));
+  } else {
+    seg.end = Math.min(editorDuration, Math.max(seg.start + 0.5, t));
+  }
+
+  const video = document.getElementById('editor-video');
+  if (video) video.currentTime = trimDrag.type === 'start' ? seg.start : seg.end;
+
+  renderTimeline();
+  drawTimelineCanvas();
+  updatePlayheadPosition();
+}
+
+function onTrimCleanup() {
+  trimDrag = null;
+  document.onmousemove = null;
+  document.onmouseup = null;
 }
 
 function drawTimelineCanvas() {
