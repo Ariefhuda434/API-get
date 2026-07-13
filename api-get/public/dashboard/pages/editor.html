@@ -17,9 +17,7 @@
             <div class="editor-main">
               <div class="editor-preview">
                 <div class="editor-preview-container" id="editor-preview-container">
-                  <div id="editor-video-wrapper" class="editor-video-wrapper">
-                    <video id="editor-video" controls></video>
-                  </div>
+                  <video id="editor-video" controls></video>
                   <div class="editor-layers-container" id="editor-layers-container">
                     <!-- Layers rendered by JS -->
                   </div>
@@ -34,7 +32,6 @@
                   <button class="editor-tab active" data-tab="text" onclick="switchEditorTab('text')">Text</button>
                   <button class="editor-tab" data-tab="shapes" onclick="switchEditorTab('shapes')">Shapes</button>
                   <button class="editor-tab" data-tab="freeze" onclick="switchEditorTab('freeze')">Freeze</button>
-                  <button class="editor-tab" data-tab="video" onclick="switchEditorTab('video')">Video</button>
                   <button class="editor-tab" data-tab="settings" onclick="switchEditorTab('settings')">Settings</button>
                 </div>
 
@@ -116,14 +113,6 @@
                     <div class="form-group">
                       <label class="form-label">BG Radius</label>
                       <input type="range" class="form-range" id="editor-text-bgradius" min="0" max="50" value="4" oninput="updateSelected()">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Alignment</label>
-                      <div style="display:flex;gap:4px;">
-                        <button class="btn btn-xs btn-outline editor-align-btn active" data-align="left" onclick="document.querySelectorAll('.editor-align-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');updateSelected();">≡ Left</button>
-                        <button class="btn btn-xs btn-outline editor-align-btn" data-align="center" onclick="document.querySelectorAll('.editor-align-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');updateSelected();">≡ Center</button>
-                        <button class="btn btn-xs btn-outline editor-align-btn" data-align="right" onclick="document.querySelectorAll('.editor-align-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');updateSelected();">≡ Right</button>
-                      </div>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                       <label class="form-label">Position</label>
@@ -264,33 +253,12 @@
                   </div>
                 </div>
 
-                <!-- VIDEO TAB -->
-                <div class="editor-tab-content" id="editor-tab-video">
-                  <div class="editor-controls-section">
-                    <h4 class="editor-controls-title">Video Layer</h4>
-                  </div>
-                  <div class="editor-controls-section" id="editor-video-controls" style="display:none;">
-                    <div class="form-group">
-                      <label class="form-label">Zoom <span id="editor-video-scale-val">100%</span></label>
-                      <input type="range" class="form-range" id="editor-video-scale" min="50" max="500" value="100" oninput="updateVideoLayer()">
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Position Y</label>
-                      <input type="range" class="form-range" id="editor-video-y" min="0" max="100" value="50" oninput="updateVideoLayer()">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                      <label class="form-label">Zoom</label>
-                      <input type="range" class="form-range" id="editor-video-scale" min="50" max="500" value="100" oninput="updateVideoLayer()">
-                    </div>
-                  </div>
-                </div>
-
                 <!-- SETTINGS TAB -->
                 <div class="editor-tab-content" id="editor-tab-settings">
                   <div class="editor-controls-section">
                     <h4 class="editor-controls-title">Frame Preset</h4>
                     <div class="form-group" style="margin-bottom:0;">
-                      <select class="form-select" id="editor-frame-preset" onchange="updateFramePreset()">
+                      <select class="form-select" id="editor-frame-preset">
                         <option value="none">Original</option>
                         <option value="9:16">TikTok / Reels / Shorts (9:16)</option>
                         <option value="1:1">Instagram Feed (1:1)</option>
