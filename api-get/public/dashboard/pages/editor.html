@@ -271,8 +271,8 @@
                   </div>
                   <div class="editor-controls-section" id="editor-video-controls" style="display:none;">
                     <div class="form-group">
-                      <label class="form-label">Position X</label>
-                      <input type="range" class="form-range" id="editor-video-x" min="0" max="100" value="50" oninput="updateVideoLayer()">
+                      <label class="form-label">Zoom <span id="editor-video-scale-val">100%</span></label>
+                      <input type="range" class="form-range" id="editor-video-scale" min="50" max="500" value="100" oninput="updateVideoLayer()">
                     </div>
                     <div class="form-group">
                       <label class="form-label">Position Y</label>
@@ -280,7 +280,7 @@
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                       <label class="form-label">Zoom</label>
-                      <input type="range" class="form-range" id="editor-video-scale" min="100" max="300" value="100" oninput="updateVideoLayer()">
+                      <input type="range" class="form-range" id="editor-video-scale" min="50" max="500" value="100" oninput="updateVideoLayer()">
                     </div>
                   </div>
                 </div>

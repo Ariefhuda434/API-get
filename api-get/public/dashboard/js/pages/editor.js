@@ -337,12 +337,16 @@ function showVideoControls() {
   document.getElementById('editor-video-x').value = videoLayer.x;
   document.getElementById('editor-video-y').value = videoLayer.y;
   document.getElementById('editor-video-scale').value = videoLayer.scale;
+  const sv = document.getElementById('editor-video-scale-val');
+  if (sv) sv.textContent = videoLayer.scale + '%';
 }
 
 function updateVideoLayer() {
   videoLayer.x = parseInt(document.getElementById('editor-video-x').value);
   videoLayer.y = parseInt(document.getElementById('editor-video-y').value);
   videoLayer.scale = parseInt(document.getElementById('editor-video-scale').value);
+  const sv = document.getElementById('editor-video-scale-val');
+  if (sv) sv.textContent = videoLayer.scale + '%';
   renderVideoLayer();
 }
 
@@ -449,7 +453,8 @@ function onDragMove(e) {
   if (dragLayer.type === 'video') {
     videoLayer.x = Math.max(0, Math.min(100, px));
     videoLayer.y = Math.max(0, Math.min(100, py));
-    showVideoControls();
+    document.getElementById('editor-video-x').value = Math.round(videoLayer.x);
+    document.getElementById('editor-video-y').value = Math.round(videoLayer.y);
     renderVideoLayer();
     renderLayers();
     return;
@@ -548,6 +553,7 @@ function onResizeStart(e, dir, id, type) {
       startX: e.clientX, startY: e.clientY,
       initScale: videoLayer.scale,
       containerW: container.clientWidth, containerH: container.clientHeight,
+      refDist: Math.max(container.clientWidth, container.clientHeight) / 2,
     };
     document.onmousemove = onResizeMove;
     document.onmouseup = onResizeEnd;
@@ -572,11 +578,17 @@ function onResizeMove(e) {
   const dy = e.clientY - resizeHandle.startY;
 
   if (resizeHandle.layerType === 'video') {
-    const dist = Math.max(dx, dy);
-    const change = dist / 3;
-    videoLayer.scale = Math.max(100, Math.min(500, resizeHandle.initScale + change));
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const d = resizeHandle.dir;
+    const sign = (d === 'nw' || d === 'ne' || d === 'se' || d === 'sw') ? 
+      ((d === 'se' || d === 'nw') ? 1 : -1) : 
+      (d.includes('e') || d.includes('s') ? 1 : -1);
+    const change = (dist / resizeHandle.refDist) * 200 * sign;
+    videoLayer.scale = Math.max(50, Math.min(500, resizeHandle.initScale + change));
+    const sv = document.getElementById('editor-video-scale-val');
+    if (sv) sv.textContent = Math.round(videoLayer.scale) + '%';
+    document.getElementById('editor-video-scale').value = Math.round(videoLayer.scale);
     renderVideoLayer();
-    showVideoControls();
     renderLayers();
     return;
   }
@@ -637,6 +649,12 @@ function updateFramePreset() {
   } else {
     container.style.aspectRatio = ratios[val];
   }
+  // Reset video to center fill when changing preset
+  videoLayer.x = 50;
+  videoLayer.y = 50;
+  videoLayer.scale = 100;
+  renderVideoLayer();
+  showVideoControls();
 }
 
 // ── Video Loading ──────────────────────────────────────────────────────
