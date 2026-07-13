@@ -301,7 +301,7 @@ function renderLayers() {
       background:${bg};
       padding:8px 16px; border-radius:${l.borderRadius}px;
       ${letterSpacing} ${styleCSS}
-      max-width:80%; text-align:center; word-wrap:break-word;
+      max-width:80%; text-align:center; word-wrap:break-word; white-space:pre-wrap;
       pointer-events:auto; cursor:grab;
     `;
     div.textContent = l.text;

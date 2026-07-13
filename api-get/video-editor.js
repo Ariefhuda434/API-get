@@ -8,7 +8,41 @@ const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 const OUTPUT_DIR = path.join(__dirname, 'output');
 const MUSIC_DIR = path.join(__dirname, 'music');
 const INTROS_DIR = path.join(__dirname, 'intros');
+const FONT_DIR = path.join(__dirname, 'fonts');
+
 const FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+
+const FONT_MAP = {
+  'Arial': { regular: '/usr/share/fonts/truetype/freefont/FreeSans.ttf', bold: '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf' },
+  'Helvetica': { regular: '/usr/share/fonts/truetype/freefont/FreeSans.ttf', bold: '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf' },
+  'Verdana': { regular: '/usr/share/fonts/truetype/freefont/FreeSans.ttf', bold: '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf' },
+  'Georgia': { regular: '/usr/share/fonts/truetype/freefont/FreeSerif.ttf', bold: '/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf' },
+  'Times New Roman': { regular: '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf', bold: '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf' },
+  'Courier New': { regular: '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf', bold: '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf' },
+  'Impact': { regular: '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf', bold: '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf' },
+  'Comic Sans MS': { regular: '/usr/share/fonts/truetype/freefont/FreeSans.ttf', bold: '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf' },
+  'Montserrat': { regular: path.join(FONT_DIR, 'Montserrat-Regular.ttf'), bold: path.join(FONT_DIR, 'Montserrat-Bold.ttf') },
+  'Poppins': { regular: path.join(FONT_DIR, 'Poppins-Regular.ttf'), bold: path.join(FONT_DIR, 'Poppins-Bold.ttf') },
+  'Roboto': { regular: path.join(FONT_DIR, 'Roboto-Regular.ttf'), bold: path.join(FONT_DIR, 'Roboto-Bold.ttf') },
+  'Oswald': { regular: path.join(FONT_DIR, 'Oswald-Regular.ttf'), bold: path.join(FONT_DIR, 'Oswald-Bold.ttf') },
+  'Inter': { regular: path.join(FONT_DIR, 'Inter-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+  'Raleway': { regular: path.join(FONT_DIR, 'Raleway-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Regular.ttf') },
+  'Nunito': { regular: path.join(FONT_DIR, 'Nunito-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Regular.ttf') },
+  'Open Sans': { regular: path.join(FONT_DIR, 'OpenSans-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+  'Merriweather': { regular: path.join(FONT_DIR, 'Merriweather-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+  'Playfair Display': { regular: path.join(FONT_DIR, 'PlayfairDisplay-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+  'Lora': { regular: path.join(FONT_DIR, 'Lora-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+  'Bebas Neue': { regular: path.join(FONT_DIR, 'BebasNeue-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+  'Josefin Sans': { regular: path.join(FONT_DIR, 'JosefinSans-Regular.ttf'), bold: path.join(FONT_DIR, 'Inter-Bold.ttf') },
+};
+
+function getFontPath(fontName, isBold) {
+  const entry = FONT_MAP[fontName];
+  if (!entry) return FONT;
+  if (isBold && entry.bold && fs.existsSync(entry.bold)) return entry.bold;
+  if (entry.regular && fs.existsSync(entry.regular)) return entry.regular;
+  return FONT;
+}
 
 const TITLE_TEMPLATES = {
   default: {
@@ -529,7 +563,8 @@ async function addTextOverlays(inputPath, outputPath, textLayers = [], options =
     const xPx = Math.round(W * (l.x || 0.5));
     const yPx = Math.round(H * (l.y || 0.5));
     const sizePx = Math.round(H * (l.size ? l.size / 100 : 0.07));
-    const fontPath = FONT;
+    const isBold = l.style === 'bold';
+    const fontPath = getFontPath(l.font || 'Arial', isBold);
     const escapedText = escapeDrawText(l.text || '');
     const color = l.color || 'white';
     const opacity = l.opacity !== undefined ? l.opacity : 1;
