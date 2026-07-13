@@ -558,9 +558,13 @@ async function addTextOverlays(inputPath, outputPath, textLayers = [], options =
       ? path.join(tmpDir, `_txt_l${i}.mp4`)
       : outputPath;
 
+    const startT = l.startTime || 0;
+    const endT = l.endTime || 999;
+    const enableExpr = `:enable='between(t,${startT},${endT})'`;
+
     const args = [
       '-i', currentPath,
-      '-vf', `drawtext=text='${escapedText}':fontfile=${fontPath}:fontsize=${sizePx}:fontcolor=${color}@${opacity}:x=${xPx}:y=${yPx}:box=${box}:boxcolor=${boxcolor}:borderw=${borderW}:bordercolor=${borderC}:shadowx=${shadowX}:shadowy=${shadowY}:shadowcolor=${shadowC}` + (l.spacing > 0 ? `:spacing=${l.spacing * 10}` : ''),
+      '-vf', `drawtext=text='${escapedText}':fontfile=${fontPath}:fontsize=${sizePx}:fontcolor=${color}@${opacity}:x=${xPx}:y=${yPx}:box=${box}:boxcolor=${boxcolor}:borderw=${borderW}:bordercolor=${borderC}:shadowx=${shadowX}:shadowy=${shadowY}:shadowcolor=${shadowC}` + (l.spacing > 0 ? `:spacing=${l.spacing * 10}` : '') + enableExpr,
       '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
       info.hasAudio ? '-c:a' : null, info.hasAudio ? 'copy' : null,
       '-y', passPath,
@@ -795,7 +799,9 @@ async function addShapeOverlays(inputPath, outputPath, shapes = []) {
 
     const label = `shp${inputCount}`;
     const prev = inputCount === 1 ? '0:v' : `shp${inputCount - 1}`;
-    filter += `[${prev}][${inputCount}:v]overlay=${xPx}:${yPx}:enable='between(t,0,${dur})'[${label}];`;
+    const sStart = sh.startTime || 0;
+    const sEnd = sh.endTime || 999;
+    filter += `[${prev}][${inputCount}:v]overlay=${xPx}:${yPx}:enable='between(t,${sStart},${sEnd})'[${label}];`;
     inputCount++;
   }
 

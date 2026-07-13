@@ -63,7 +63,8 @@ function addTextLayer() {
     text: 'Your Text',
     font: 'Arial', size: 48, color: '#ffffff', opacity: 100,
     bgColor: '#000000', bgOpacity: 0, borderRadius: 4,
-    style: 'normal', spacing: 0, x: 50, y: 50
+    style: 'normal', spacing: 0, x: 50, y: 50,
+    startTime: 0, endTime: 999
   });
   selectLayer(id, 'text');
   renderLayerList();
@@ -76,7 +77,8 @@ function addShapeLayer(shapeType) {
   shapeLayers.push({
     id, type: 'shape', shapeType,
     width: 15, height: 15, color: '#ffffff', opacity: 100,
-    border: 0, borderColor: '#ffffff', rotation: 0, x: 50, y: 50
+    border: 0, borderColor: '#ffffff', rotation: 0, x: 50, y: 50,
+    startTime: 0, endTime: 999
   });
   selectLayer(id, 'shape');
   renderLayerList();
@@ -178,6 +180,11 @@ function showTextControls() {
   document.getElementById('editor-layer-y').value = l.y;
   document.getElementById('editor-layer-x-val').textContent = l.x + '%';
   document.getElementById('editor-layer-y-val').textContent = l.y + '%';
+  // Duration
+  const st = document.getElementById('editor-text-start');
+  const en = document.getElementById('editor-text-end');
+  if (st) st.value = l.startTime || 0;
+  if (en) en.value = l.endTime || 999;
 }
 
 function updateSelected() {
@@ -194,6 +201,8 @@ function updateSelected() {
     l.style = document.getElementById('editor-text-style').value;
     l.spacing = parseInt(document.getElementById('editor-text-spacing').value);
     l.borderRadius = parseInt(document.getElementById('editor-text-bgradius').value);
+    l.startTime = parseFloat(document.getElementById('editor-text-start').value) || 0;
+    l.endTime = parseFloat(document.getElementById('editor-text-end').value) || 999;
     l.x = parseInt(document.getElementById('editor-layer-x').value);
     l.y = parseInt(document.getElementById('editor-layer-y').value);
     document.getElementById('editor-layer-x-val').textContent = l.x + '%';
@@ -208,6 +217,8 @@ function updateSelected() {
     l.rotation = parseInt(document.getElementById('editor-shape-rotation').value);
     l.x = parseInt(document.getElementById('editor-layer-x-shape').value);
     l.y = parseInt(document.getElementById('editor-layer-y-shape').value);
+    l.startTime = parseFloat(document.getElementById('editor-shape-start').value) || 0;
+    l.endTime = parseFloat(document.getElementById('editor-shape-end').value) || 999;
     document.getElementById('editor-layer-x-val-shape').textContent = l.x + '%';
     document.getElementById('editor-layer-y-val-shape').textContent = l.y + '%';
   }
@@ -253,6 +264,11 @@ function showShapeControls() {
   document.getElementById('editor-layer-y-shape').value = l.y;
   document.getElementById('editor-layer-x-val-shape').textContent = l.x + '%';
   document.getElementById('editor-layer-y-val-shape').textContent = l.y + '%';
+  // Duration
+  const st = document.getElementById('editor-shape-start');
+  const en = document.getElementById('editor-shape-end');
+  if (st) st.value = l.startTime || 0;
+  if (en) en.value = l.endTime || 999;
 }
 
 // ── Render Layers ──────────────────────────────────────────────────────
@@ -260,9 +276,13 @@ function renderLayers() {
   const container = document.getElementById('editor-layers-container');
   if (!container) return;
   container.innerHTML = '';
+  const vid = document.getElementById('editor-video');
+  const currentT = vid ? vid.currentTime : 0;
 
   // Text layers
   textLayers.forEach(l => {
+    const inTime = currentT >= (l.startTime || 0) && currentT <= (l.endTime || 999);
+    if (!inTime) return;
     const div = document.createElement('div');
     div.className = 'editor-layer-el' + (selectedLayer && selectedLayer.id === l.id && selectedLayer.type === 'text' ? ' selected' : '');
     div.dataset.layerId = l.id;
@@ -291,6 +311,8 @@ function renderLayers() {
 
   // Shape layers
   shapeLayers.forEach(l => {
+    const inTime = currentT >= (l.startTime || 0) && currentT <= (l.endTime || 999);
+    if (!inTime) return;
     const div = document.createElement('div');
     div.className = 'editor-layer-el' + (selectedLayer && selectedLayer.id === l.id && selectedLayer.type === 'shape' ? ' selected' : '');
     div.dataset.layerId = l.id;
@@ -505,7 +527,7 @@ function drawTimelineCanvas() {
   if (!canvas) return;
   const track = document.getElementById('editor-timeline-track');
   const w = track ? track.clientWidth : 800;
-  const h = 80;
+  const h = 110;
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
@@ -519,6 +541,29 @@ function drawTimelineCanvas() {
     const bar = 10 + Math.sin(x * 0.1) * 8 + Math.cos(x * 0.05) * 4;
     ctx.fillRect(x, 40 - bar / 2, 2, bar);
   }
+
+  // Draw layer duration bars
+  const allLayers = [
+    ...textLayers.map(l => ({ ...l, layerType: 'text' })),
+    ...shapeLayers.map(l => ({ ...l, layerType: 'shape' }))
+  ];
+  allLayers.forEach((l, i) => {
+    const st = l.startTime || 0;
+    const en = l.endTime || 999;
+    const x1 = 20 + st * pp;
+    const x2 = 20 + en * pp;
+    const barY = 62 + (i % 3) * 6;
+    ctx.fillStyle = l.layerType === 'text' ? 'rgba(0,212,255,0.4)' : 'rgba(255,200,50,0.4)';
+    ctx.fillRect(x1, barY, x2 - x1, 4);
+    // Small dots at start/end
+    ctx.beginPath();
+    ctx.arc(x1, barY + 2, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#00d4ff';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x2, barY + 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
 
   // Draw time ruler
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -616,12 +661,14 @@ async function exportEditedVideo() {
       color: l.color, opacity: l.opacity,
       bgColor: l.bgColor, bgOpacity: l.bgOpacity, borderRadius: l.borderRadius,
       x: l.x, y: l.y, style: l.style, spacing: l.spacing,
+      startTime: l.startTime || 0, endTime: l.endTime || 999,
     })),
     shapeLayers: shapeLayers.map(l => ({
       type: l.shapeType, color: l.color, opacity: l.opacity,
       width: l.width, height: l.height,
       border: l.border, borderColor: l.borderColor, rotation: l.rotation,
       x: l.x, y: l.y,
+      startTime: l.startTime || 0, endTime: l.endTime || 999,
     })),
     freezeFrame: getFreezeConfig(),
     aspectRatio: document.getElementById('editor-frame-preset').value,

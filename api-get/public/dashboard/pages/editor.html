@@ -125,6 +125,16 @@
                         <span id="editor-layer-y-val" style="font-size:11px;min-width:30px;color:var(--text-dim);">50%</span>
                       </div>
                     </div>
+                    <div class="form-row" style="margin-top:6px;">
+                      <div class="form-group">
+                        <label class="form-label">Start</label>
+                        <input type="number" class="form-input" id="editor-text-start" value="0" min="0" step="0.5" style="width:70px;" oninput="updateSelected()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">End</label>
+                        <input type="number" class="form-input" id="editor-text-end" value="999" min="0" step="0.5" style="width:70px;" oninput="updateSelected()">
+                      </div>
+                    </div>
                     <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
                       <button class="btn btn-xs btn-outline" onclick="alignLayer('left')">◀ Left</button>
                       <button class="btn btn-xs btn-outline" onclick="alignLayer('center-h')">↔ Center</button>
@@ -203,6 +213,16 @@
                         <span style="font-size:11px;color:var(--text-dim);min-width:12px;margin-left:8px;">Y:</span>
                         <input type="range" class="form-range" id="editor-layer-y-shape" min="0" max="100" value="50" oninput="updateSelected()" style="flex:1;">
                         <span id="editor-layer-y-val-shape" style="font-size:11px;min-width:30px;color:var(--text-dim);">50%</span>
+                      </div>
+                    </div>
+                    <div class="form-row" style="margin-top:6px;">
+                      <div class="form-group">
+                        <label class="form-label">Start</label>
+                        <input type="number" class="form-input" id="editor-shape-start" value="0" min="0" step="0.5" style="width:70px;" oninput="updateSelected()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">End</label>
+                        <input type="number" class="form-input" id="editor-shape-end" value="999" min="0" step="0.5" style="width:70px;" oninput="updateSelected()">
                       </div>
                     </div>
                     <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">
