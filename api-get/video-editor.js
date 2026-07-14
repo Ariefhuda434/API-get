@@ -1346,6 +1346,154 @@ async function fullEdit(options = {}) {
   };
 }
 
+// ── Google Drive URL Resolver ───────────────────────────────────────────
+function resolveDriveUrl(url) {
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/\/file\/d\/([^/]+)/);
+    if (match) return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+  }
+  return url;
+}
+
+// ── Combine Videos from Brief ───────────────────────────────────────────
+async function combineVideosFromBrief(brief) {
+  const {
+    urls = [], title = 'Untitled', caption = '', hashtags = [],
+    keywords = '', products = [], aspectRatio = 'none',
+    freezeFrame = null, font = 'Poppins', fontSize = 48,
+    color = '#ffffff', bgColor = '#000000', bgOpacity = 60,
+  } = brief;
+
+  const baseName = 'brief_' + Date.now();
+  const briefDir = path.join(OUTPUT_DIR, 'briefs');
+  ensureDir(briefDir);
+  const tempFiles = [];
+
+  let progressCallback = brief._onProgress || (() => {});
+
+  try {
+    // Step 1: Download all videos
+    progressCallback({ type: 'progress', text: 'Downloading videos...', percent: 5 });
+    const videoPaths = [];
+    for (let i = 0; i < urls.length; i++) {
+      const url = resolveDriveUrl(urls[i].trim());
+      const ext = path.extname(new URL(url).pathname) || '.mp4';
+      const vPath = path.join(briefDir, `${baseName}_src${i}${ext}`);
+      tempFiles.push(vPath);
+      progressCallback({ type: 'progress', text: `Downloading video ${i + 1}/${urls.length}...`, percent: 5 + (i / urls.length) * 25 });
+      try {
+        await downloadVideo(url, vPath);
+        videoPaths.push(vPath);
+      } catch (e) {
+        progressCallback({ type: 'progress', text: `Failed to download video ${i + 1}: ${e.message}`, percent: 0 });
+        throw new Error(`Failed to download video ${i + 1}: ${e.message}`);
+      }
+    }
+
+    if (videoPaths.length === 0) throw new Error('No videos downloaded');
+
+    progressCallback({ type: 'progress', text: 'Combining videos...', percent: 35 });
+
+    // Step 2: Concatenate all videos
+    let workingPath = videoPaths[0];
+    if (videoPaths.length > 1) {
+      const concatPath = path.join(briefDir, `${baseName}_concat.mp4`);
+      tempFiles.push(concatPath);
+      await concatWithTransitions(videoPaths, concatPath);
+      workingPath = concatPath;
+    }
+
+    const info = getVideoInfo(workingPath);
+    const W = info.width;
+    const H = info.height;
+    const dur = info.duration;
+
+    // Step 3: Freeze frame intro
+    if (freezeFrame && freezeFrame.enabled !== false) {
+      progressCallback({ type: 'progress', text: 'Adding freeze frame intro...', percent: 45 });
+      const freezeTime = freezeFrame.time || 1;
+      const freezeDur = freezeFrame.duration || 3;
+      const freezeImg = path.join(briefDir, `${baseName}_freeze.png`);
+      tempFiles.push(freezeImg);
+      try {
+        await extractVideoFrame(workingPath, Math.min(freezeTime, Math.max(0, dur - 1)), freezeImg);
+        if (fs.existsSync(freezeImg)) {
+          const ffPath = path.join(briefDir, `${baseName}_freeze_intro.mp4`);
+          tempFiles.push(ffPath);
+          await addFreezeFrameTitle(workingPath, freezeImg, ffPath, {
+            duration: freezeDur,
+          });
+          try { if (fs.existsSync(workingPath)) fs.unlinkSync(workingPath); } catch {}
+          workingPath = ffPath;
+        }
+      } catch (e) {
+        progressCallback({ type: 'progress', text: `Freeze frame skipped: ${e.message}`, percent: 45 });
+      }
+    }
+
+    // Step 4: Add caption as text overlay
+    progressCallback({ type: 'progress', text: 'Adding caption overlay...', percent: 60 });
+
+    // Build text layers from caption + hashtags
+    const textLayers = [];
+    if (caption) {
+      textLayers.push({
+        text: caption, font: font, size: fontSize,
+        color: color, opacity: 100,
+        bgColor: bgColor, bgOpacity: bgOpacity, borderRadius: 8,
+        x: 50, y: 80, style: 'normal', spacing: 2,
+        startTime: 0, endTime: 999,
+      });
+    }
+
+    if (hashtags && hashtags.length) {
+      const tags = Array.isArray(hashtags) ? hashtags.join(' ') : hashtags;
+      textLayers.push({
+        text: tags, font: font, size: Math.round(fontSize * 0.6),
+        color: color, opacity: 80,
+        bgColor: bgColor, bgOpacity: 40, borderRadius: 4,
+        x: 50, y: 92, style: 'normal', spacing: 1,
+        startTime: 0, endTime: 999,
+      });
+    }
+
+    if (textLayers.length > 0) {
+      const txtPath = path.join(briefDir, `${baseName}_text.mp4`);
+      tempFiles.push(txtPath);
+      await addTextOverlays(workingPath, txtPath, textLayers);
+      try { if (fs.existsSync(workingPath)) fs.unlinkSync(workingPath); } catch {}
+      workingPath = txtPath;
+    }
+
+    // Step 5: Apply aspect ratio
+    if (aspectRatio && aspectRatio !== 'none') {
+      progressCallback({ type: 'progress', text: 'Applying frame preset...', percent: 80 });
+      const arPath = path.join(briefDir, `${baseName}_ar.mp4`);
+      tempFiles.push(arPath);
+      await applyAspectRatio(workingPath, arPath, aspectRatio);
+      try { if (fs.existsSync(workingPath)) fs.unlinkSync(workingPath); } catch {}
+      workingPath = arPath;
+    }
+
+    progressCallback({ type: 'progress', text: 'Finalizing...', percent: 95 });
+
+    // Cleanup temp files
+    for (const p of tempFiles) {
+      if (p !== workingPath && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
+    }
+
+    progressCallback({ type: 'done', url: '/' + path.relative(__dirname, workingPath), outputPath: workingPath, message: 'Video generated successfully!' });
+
+    return workingPath;
+
+  } catch (e) {
+    // Cleanup on error
+    for (const p of tempFiles) { if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch {} }
+    progressCallback({ type: 'error', message: e.message });
+    throw e;
+  }
+}
+
 module.exports = {
   downloadVideo,
   addIntroTitle,
@@ -1361,6 +1509,8 @@ module.exports = {
   addFreezeFrameTitle,
   concatWithTransitions,
   fullEdit,
+  combineVideosFromBrief,
+  resolveDriveUrl,
   getVideoInfo,
   TITLE_TEMPLATES,
 };

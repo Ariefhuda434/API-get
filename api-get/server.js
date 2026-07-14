@@ -588,6 +588,38 @@ app.get('/api/video/download/:file', requireAuth, (req, res) => {
   res.download(filePath);
 });
 
+// POST /api/video/from-brief — auto-generate video from content brief
+app.post('/api/video/from-brief', requireAuth, async (req, res) => {
+  const brief = req.body;
+  if (!brief.urls || !brief.urls.length) {
+    return res.status(400).json({ success: false, error: 'Minimal 1 video URL diperlukan' });
+  }
+  if (!brief.caption) {
+    return res.status(400).json({ success: false, error: 'Caption wajib diisi' });
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+
+  const sendProgress = (msg) => {
+    try { res.write(JSON.stringify(msg) + '\n'); } catch {}
+  };
+
+  brief._onProgress = sendProgress;
+
+  try {
+    const result = await videoEditor.combineVideosFromBrief(brief);
+    sendProgress({ type: 'done', url: `/api/video/download/briefs/${path.basename(result)}`, outputPath: result, message: 'Video generated successfully!' });
+  } catch (err) {
+    sendProgress({ type: 'error', message: err.message });
+  } finally {
+    res.end();
+  }
+});
+
 // POST /api/video/upload-image — upload image overlay
 app.post('/api/video/upload-image', requireAuth, async (req, res) => {
   try {

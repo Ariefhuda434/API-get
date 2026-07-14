@@ -1,0 +1,148 @@
+          <div class="section-header">
+            <h2>Content Brief Generator</h2>
+            <p>Input brief → auto generate video dengan caption, hashtags, freeze frame, dan frame preset</p>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                  <div class="card-title">Video Sources</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Video URLs (Google Drive, YouTube, direct links)</label>
+                  <textarea class="form-textarea" id="brief-urls" rows="4" placeholder="https://drive.google.com/file/d/.../view&#10;https://youtu.be/...&#10;https://example.com/video.mp4"></textarea>
+                  <div class="form-hint">One URL per line. Supports Google Drive, YouTube, and direct video links</div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Project Title</label>
+                  <input type="text" class="form-input" id="brief-title" placeholder="e.g. Sidebrother Idul Adha Kahf Facewash" value="Sidebrother Idul Adha Kahf Facewash">
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                  <div class="card-title">Content</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Required Caption</label>
+                  <textarea class="form-textarea" id="brief-caption" rows="3" placeholder="Caption yang wajib muncul di video...">Momen Tepe, Jot, Yuka &amp; Mike pake facewash Kahf di IRL Blok M?!</textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Hashtags</label>
+                  <input type="text" class="form-input" id="brief-hashtags" placeholder="#Hashtag1, #Hashtag2, ..." value="#FacewashKahfTepe, #KahfFacewash, #JendralSideBrother, #IRLSideBrother, #BENERBARENG22">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Keywords (for AI briefing)</label>
+                  <input type="text" class="form-input" id="brief-keywords" placeholder="e.g. facewash kahf biru tepe, facewash kahf ijo belang Yuka" value="Facewash kahf biru tepe, Facewash kahf ijo belang Yuka, IRL Sidebrother idul adha kahf">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Product Links (optional)</label>
+                  <textarea class="form-textarea" id="brief-products" rows="2" placeholder="https://tokopedia.link/...">https://vt.tokopedia.com/t/ZS98wqyBScEtF-7UzRa/
+https://vt.tokopedia.com/t/ZS98w4wev3DT7-iohmT/</textarea>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                  <div class="card-title">Video Settings</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Frame Preset</label>
+                  <select class="form-select" id="brief-aspect">
+                    <option value="none">Original</option>
+                    <option value="9:16" selected>TikTok / Reels / Shorts (9:16)</option>
+                    <option value="1:1">Instagram Feed (1:1)</option>
+                    <option value="4:5">Instagram Portrait (4:5)</option>
+                    <option value="16:9">YouTube / Landscape (16:9)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">
+                    <input type="checkbox" id="brief-freeze-enable" checked style="margin-right:6px;">
+                    Freeze Frame Intro
+                  </label>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Freeze at (second)</label>
+                    <input type="number" class="form-input" id="brief-freeze-time" value="1" min="0" step="0.5" style="width:80px;">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Duration</label>
+                    <select class="form-select" id="brief-freeze-duration" style="width:80px;">
+                      <option value="2">2s</option>
+                      <option value="3" selected>3s</option>
+                      <option value="4">4s</option>
+                      <option value="5">5s</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                  <div class="card-title">Caption Style</div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Font</label>
+                    <select class="form-select" id="brief-font">
+                      <option value="Poppins" selected>Poppins</option>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Oswald">Oswald</option>
+                      <option value="Inter">Inter</option>
+                      <option value="Arial">Arial</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Size</label>
+                    <select class="form-select" id="brief-size" style="width:80px;">
+                      <option value="36">Small</option>
+                      <option value="48" selected>Medium</option>
+                      <option value="64">Large</option>
+                      <option value="80">XL</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Text Color</label>
+                    <input type="color" class="form-input" id="brief-color" value="#ffffff" style="height:38px;padding:2px;">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">BG Color</label>
+                    <input type="color" class="form-input" id="brief-bgcolor" value="#000000" style="height:38px;padding:2px;">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">BG Opacity</label>
+                    <input type="range" class="form-range" id="brief-bgopacity" min="0" max="100" value="60" style="width:100%;">
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" onclick="submitBrief()" style="width:100%;padding:12px;font-size:16px;">
+                ⚡ Generate Video
+              </button>
+
+              <div class="card" id="brief-progress" style="margin-top:24px;display:none;">
+                <div class="card-header">
+                  <div class="card-title">Progress</div>
+                </div>
+                <div id="brief-progress-text" style="font-size:14px;color:var(--text-dim);">Processing...</div>
+                <div style="margin-top:12px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                  <div id="brief-progress-bar" style="width:0%;height:100%;background:var(--primary);transition:width 0.3s;"></div>
+                </div>
+              </div>
+
+              <div class="card" id="brief-result" style="margin-top:24px;display:none;">
+                <div class="card-header">
+                  <div class="card-title">Result</div>
+                </div>
+                <div id="brief-result-body"></div>
+              </div>
+            </div>
+          </div>

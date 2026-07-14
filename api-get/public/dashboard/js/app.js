@@ -94,6 +94,21 @@ const PRESETS = {
       'Jangan potong di tengah frase musikal'
     ]
   },
+  'Iben Podcast': {
+    icon: '&#128176;',
+    desc: 'Jual Emas Indonesia - Iben & Juan',
+    min_duration: 15, max_duration: 90, target_duration: 60,
+    captions: true, reframe: false, emojis: false, remove_silences: true, intro_title: false,
+    stylePresetId: '',
+    context: 'Podcast Iben dan Juan bahas Jual Emas Indonesia. Cari momen: penjelasan value proposition jual emas, cara kerja bisnis emas, insight pasar emas Indonesia, tips investasi emas, cerita partnership Iben & Juan, alasan orang beli emas lewat mereka, perbandingan emas vs investasi lain, testimoni/pengalaman customer. Hindari konten sensitif, SARA, intro/outro podcast, iklan, small talk kosong.',
+    tips: [
+      'Fokus ke momen yang explain kenapa orang harus beli emas lewat mereka',
+      'Cari bagian Iben dan Juan explain business model-nya',
+      'Insight soal pasar emas Indonesia banyak engagement',
+      'Testimoni/pengalaman nyata paling ngena buat audience',
+      'Pastikan tiap clip durasi minimal 15 detik sesuai aturan campaign'
+    ]
+  },
   'Custom': {
     icon: '&#9881;',
     desc: 'Full manual control',
@@ -129,6 +144,7 @@ const PAGE_TITLES = {
   users: 'Managed Users',
   keys: 'Key Manager',
   editor: 'Klap Editor',
+  brief: 'Content Brief',
   settings: 'Settings'
 };
 
@@ -193,6 +209,7 @@ async function navigateTo(page) {
     else if (page === 'presets') renderPresetsDetailPage();
     else if (page === 'users') renderUsers();
     else if (page === 'editor') initEditor();
+    else if (page === 'brief') initBrief();
   } catch (e) {
     console.error('Error in page init:', e);
   }
@@ -216,7 +233,7 @@ function init() {
   loadHistory();
 
   const pageFromHash = window.location.hash.replace('#', '') || 'create';
-  const validPages = ['create', 'results', 'history', 'presets', 'users', 'keys', 'editor', 'settings'];
+  const validPages = ['create', 'results', 'history', 'presets', 'users', 'keys', 'editor', 'settings', 'brief'];
   navigateTo(validPages.includes(pageFromHash) ? pageFromHash : 'create');
 
   setTimeout(() => checkAllCredit(true), 2000);
